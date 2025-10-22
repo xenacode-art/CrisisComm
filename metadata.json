@@ -1,0 +1,8 @@
+{
+  "name": "CrisisComm - Emergency Family Communication Hub",
+  "description": "An emergency family communication and coordination platform for natural disasters and crisis situations. It features an SMS check-in system, an AI-powered emergency coordinator, and a real-time family map to ensure families can connect and coordinate when it matters most.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}
