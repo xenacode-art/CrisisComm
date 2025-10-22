@@ -73,11 +73,9 @@ const App: React.FC = () => {
 
   // Effect for initial family circle loading
   useEffect(() => {
-    // If we have a stored family circle, we can show the dashboard immediately.
     if (familyCircle) {
         setIsLoading(false);
     } else {
-        // Otherwise, check mock API (simulates first-time load)
         getFamilyCircle().then(circle => {
             if (circle) setFamilyCircle(circle);
             setIsLoading(false);
@@ -116,6 +114,19 @@ const App: React.FC = () => {
         setIsLocationLoading(false);
     }
   }, [isOnline]);
+
+  // Start/Stop the background data simulation when the dashboard is active/inactive.
+  useEffect(() => {
+    let stopSimulation: (() => void) | undefined;
+    if (familyCircle && isOnline) {
+      // The simulation service operates on a shared mock object, so we pass
+      // the current circle to ensure it's initialized correctly.
+      stopSimulation = startCrisisSimulation(familyCircle);
+    }
+    return () => {
+      stopSimulation?.();
+    };
+  }, [familyCircle, isOnline]);
 
   if (isLoading || isLocationLoading) {
     return (
@@ -224,21 +235,21 @@ const CrisisView: React.FC<{
     const [activeTab, setActiveTab] = useState<CrisisTab>('status');
     const isOnline = useOnlineStatus();
     
-    // Simulate live member status updates
+    // Poll for UI updates from the simulation, which now runs independently.
     useEffect(() => {
         if (!isOnline) return;
-        const stopSimulation = startCrisisSimulation(familyCircle);
+
         const interval = setInterval(() => {
             getFamilyCircle().then(circle => {
                 if (circle) onFamilyCircleUpdate(circle);
             });
-        }, 2000);
+        }, 2000); // Poll every 2 seconds
 
         return () => {
-            stopSimulation();
             clearInterval(interval);
         };
-    }, [familyCircle, isOnline, onFamilyCircleUpdate]);
+    }, [isOnline, onFamilyCircleUpdate]);
+
 
     const fetchCrisisData = useCallback(async () => {
         if (!isOnline) {
