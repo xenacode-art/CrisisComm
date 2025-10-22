@@ -16,6 +16,7 @@ import PreparednessDashboard from './components/PreparednessDashboard';
 import LiveCrisisDataView from './components/LiveCrisisDataView';
 import OfflineIndicator from './components/OfflineIndicator';
 import SmsCheckinSimulator from './components/SmsCheckinSimulator';
+import Notification from './components/common/Notification';
 
 const DEFAULT_LOCATION: Coordinates = { lat: 37.7749, lng: -122.4194 }; // San Francisco City Hall
 
@@ -46,11 +47,22 @@ const App: React.FC = () => {
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocationLoading, setIsLocationLoading] = useState(true);
+  const [notification, setNotification] = useState<string | null>(null);
   const isOnline = useOnlineStatus();
   
   useTheme(); // Initialize theme hook at the root
 
   const handleCircleCreated = (circle: FamilyCircle) => {
+    const invitedMembers = circle.members
+        .filter(m => m.name.toLowerCase() !== 'you')
+        .map(m => m.name);
+    
+    let message = 'Circle created successfully!';
+    if (invitedMembers.length > 0) {
+        message += ` Simulated SMS invitations have been sent to ${invitedMembers.join(', ')}.`;
+    }
+
+    setNotification(message);
     setFamilyCircle(circle);
   };
 
@@ -106,6 +118,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-crisis-dark text-gray-800 dark:text-gray-200 font-sans">
+      {notification && <Notification message={notification} type="success" onClose={() => setNotification(null)} />}
       {!isOnline && <OfflineIndicator />}
       {familyCircle ? (
         <DashboardContainer 
