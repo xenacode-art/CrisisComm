@@ -66,35 +66,50 @@ export const startCrisisSimulation = (circle: FamilyCircle): (() => void) => {
     const intervalId = setInterval(() => {
         if (!mockFamilyCircle) return;
 
-        // Simulate Mike checking in as SAFE
-        const mike = mockFamilyCircle.members.find(m => m.name.includes('Mike'));
-        if (mike && mike.status === StatusType.UNKNOWN) {
-            mike.status = StatusType.SAFE;
-            mike.message = "I'm okay, at home. Shaken up but safe.";
-            mike.last_update = new Date().toISOString();
-            if (mike.location) mike.location.accuracy = 15; // Improved accuracy on check-in
-        }
-
-        // Simulate Emma needing HELP after some time
-        const emma = mockFamilyCircle.members.find(m => m.name.includes('Emma'));
-        if (emma && emma.status !== StatusType.HELP) {
-            const shouldUpdate = Math.random() > 0.7;
-            if (shouldUpdate) {
-                emma.status = StatusType.HELP;
-                emma.message = "Stuck near the office, roads are blocked. Can anyone see a clear path?";
-                emma.last_update = new Date().toISOString();
-            }
-        }
+        let membersChanged = false;
         
-        // Simulate Grandma being found by a neighbor as INJURED
-        const grandma = mockFamilyCircle.members.find(m => m.name.includes('Grandma'));
-        if (grandma && grandma.status !== StatusType.INJURED) {
-             const shouldUpdate = Math.random() > 0.85;
-            if (shouldUpdate) {
-                grandma.status = StatusType.INJURED;
-                grandma.message = "Neighbor called. Said she fell and hurt her arm. Needs assistance.";
-                grandma.last_update = new Date().toISOString();
+        const newMembers = mockFamilyCircle.members.map(member => {
+            let updatedMember = { ...member }; // Start with a shallow copy
+
+            // Simulate Mike checking in as SAFE
+            if (member.name.includes('Mike') && member.status === StatusType.UNKNOWN) {
+                updatedMember.status = StatusType.SAFE;
+                updatedMember.message = "I'm okay, at home. Shaken up but safe.";
+                updatedMember.last_update = new Date().toISOString();
+                if (updatedMember.location) {
+                    updatedMember.location = { ...updatedMember.location, accuracy: 15 };
+                }
+                membersChanged = true;
             }
+
+            // Simulate Emma needing HELP after some time
+            if (member.name.includes('Emma') && member.status !== StatusType.HELP) {
+                if (Math.random() > 0.7) {
+                    updatedMember.status = StatusType.HELP;
+                    updatedMember.message = "Stuck near the office, roads are blocked. Can anyone see a clear path?";
+                    updatedMember.last_update = new Date().toISOString();
+                    membersChanged = true;
+                }
+            }
+            
+            // Simulate Grandma being found by a neighbor as INJURED
+            if (member.name.includes('Grandma') && member.status !== StatusType.INJURED) {
+                 if (Math.random() > 0.85) {
+                    updatedMember.status = StatusType.INJURED;
+                    updatedMember.message = "Neighbor called. Said she fell and hurt her arm. Needs assistance.";
+                    updatedMember.last_update = new Date().toISOString();
+                    membersChanged = true;
+                }
+            }
+            
+            return updatedMember;
+        });
+
+        if (membersChanged) {
+             mockFamilyCircle = {
+                ...mockFamilyCircle,
+                members: newMembers,
+            };
         }
 
     }, 5000); // Update every 5 seconds
@@ -103,27 +118,39 @@ export const startCrisisSimulation = (circle: FamilyCircle): (() => void) => {
 };
 
 export const getFamilyCircle = (): Promise<FamilyCircle | null> => {
-    return Promise.resolve(mockFamilyCircle);
+    // Return a deep copy to prevent accidental mutation of the mock source
+    return Promise.resolve(mockFamilyCircle ? JSON.parse(JSON.stringify(mockFamilyCircle)) : null);
 };
 
 export const addMemberVoiceNote = (memberId: string, voiceNoteUrl: string): Promise<Member> => {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             if (mockFamilyCircle) {
-                const member = mockFamilyCircle.members.find(m => m.id === memberId);
-                if (member) {
-                    if (!member.voiceNotes) {
-                        member.voiceNotes = [];
+                let updatedMember: Member | null = null;
+                const newMembers = mockFamilyCircle.members.map(m => {
+                    if (m.id === memberId) {
+                        const newVoiceNote: VoiceNote = {
+                            id: `vn_${Date.now()}`,
+                            url: voiceNoteUrl,
+                            createdAt: new Date().toISOString(),
+                        };
+                        updatedMember = {
+                            ...m,
+                            voiceNotes: [...(m.voiceNotes || []), newVoiceNote],
+                            last_update: new Date().toISOString(),
+                            message: "Sent a new voice note.",
+                        };
+                        return updatedMember;
                     }
-                    const newVoiceNote: VoiceNote = {
-                        id: `vn_${Date.now()}`,
-                        url: voiceNoteUrl,
-                        createdAt: new Date().toISOString(),
+                    return m;
+                });
+
+                if (updatedMember) {
+                    mockFamilyCircle = {
+                        ...mockFamilyCircle,
+                        members: newMembers,
                     };
-                    member.voiceNotes.push(newVoiceNote);
-                    member.last_update = new Date().toISOString();
-                    member.message = "Sent a new voice note.";
-                    resolve(member);
+                    resolve(updatedMember);
                 } else {
                     reject(new Error("Member not found"));
                 }
@@ -138,14 +165,29 @@ export const deleteMemberVoiceNote = (memberId: string, voiceNoteId: string): Pr
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             if (mockFamilyCircle) {
-                const member = mockFamilyCircle.members.find(m => m.id === memberId);
-                if (member && member.voiceNotes) {
-                    member.voiceNotes = member.voiceNotes.filter(vn => vn.id !== voiceNoteId);
-                    member.last_update = new Date().toISOString();
-                    if (member.voiceNotes.length === 0 && member.message?.includes("voice note")) {
-                        member.message = "Cleared voice notes.";
+                let updatedMember: Member | null = null;
+                const newMembers = mockFamilyCircle.members.map(m => {
+                    if (m.id === memberId && m.voiceNotes) {
+                        const newVoiceNotes = m.voiceNotes.filter(vn => vn.id !== voiceNoteId);
+                        updatedMember = {
+                            ...m,
+                            voiceNotes: newVoiceNotes,
+                            last_update: new Date().toISOString(),
+                            message: newVoiceNotes.length === 0 && m.message?.includes("voice note")
+                                ? "Cleared voice notes."
+                                : m.message,
+                        };
+                        return updatedMember;
                     }
-                    resolve(member);
+                    return m;
+                });
+                
+                if (updatedMember) {
+                    mockFamilyCircle = {
+                        ...mockFamilyCircle,
+                        members: newMembers,
+                    };
+                    resolve(updatedMember);
                 } else {
                     reject(new Error("Member or voice note not found"));
                 }
@@ -161,11 +203,25 @@ export const updateMemberLocationSharing = (memberId: string, isShared: boolean)
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             if (mockFamilyCircle) {
-                const member = mockFamilyCircle.members.find(m => m.id === memberId);
-                if (member) {
-                    member.isLocationShared = isShared;
-                    member.last_update = new Date().toISOString();
-                    resolve(member);
+                let updatedMember: Member | null = null;
+                const newMembers = mockFamilyCircle.members.map(m => {
+                    if (m.id === memberId) {
+                        updatedMember = {
+                            ...m,
+                            isLocationShared: isShared,
+                            last_update: new Date().toISOString(),
+                        };
+                        return updatedMember;
+                    }
+                    return m;
+                });
+
+                if (updatedMember) {
+                    mockFamilyCircle = {
+                        ...mockFamilyCircle,
+                        members: newMembers,
+                    };
+                    resolve(updatedMember);
                 } else {
                     reject(new Error("Member not found"));
                 }
@@ -180,12 +236,26 @@ export const updateMemberStatus = (memberId: string, status: StatusType, message
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             if (mockFamilyCircle) {
-                const member = mockFamilyCircle.members.find(m => m.id === memberId);
-                if (member) {
-                    member.status = status;
-                    member.message = message;
-                    member.last_update = new Date().toISOString();
-                    resolve(member);
+                let updatedMember: Member | null = null;
+                const newMembers = mockFamilyCircle.members.map(m => {
+                    if (m.id === memberId) {
+                        updatedMember = {
+                            ...m,
+                            status,
+                            message,
+                            last_update: new Date().toISOString(),
+                        };
+                        return updatedMember;
+                    }
+                    return m;
+                });
+
+                if (updatedMember) {
+                    mockFamilyCircle = {
+                        ...mockFamilyCircle,
+                        members: newMembers,
+                    };
+                    resolve(updatedMember);
                 } else {
                     reject(new Error("Member not found"));
                 }
