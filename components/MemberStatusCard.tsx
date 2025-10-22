@@ -3,6 +3,7 @@ import { Member, StatusType } from '../types';
 import { ShieldCheckIcon, AlertTriangleIcon, UserIcon, MapIcon } from './icons';
 import VoiceNoteHandler from './VoiceNoteHandler';
 import { updateMemberLocationSharing } from '../services/mockApiService';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface MemberStatusCardProps {
   member: Member;
@@ -43,6 +44,7 @@ const statusConfig = {
 const MemberStatusCard: React.FC<MemberStatusCardProps> = ({ member, onMemberUpdate }) => {
   const config = statusConfig[member.status];
   const [isLocationToggleDisabled, setIsLocationToggleDisabled] = useState(false);
+  const isOnline = useOnlineStatus();
 
   const handleToggleLocation = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const isShared = e.target.checked;
@@ -83,7 +85,7 @@ const MemberStatusCard: React.FC<MemberStatusCardProps> = ({ member, onMemberUpd
             type="checkbox"
             checked={member.isLocationShared}
             onChange={handleToggleLocation}
-            disabled={isLocationToggleDisabled}
+            disabled={isLocationToggleDisabled || !isOnline}
             className="sr-only peer"
             aria-label={`Share location for ${member.name}`}
           />

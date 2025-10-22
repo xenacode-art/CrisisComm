@@ -3,20 +3,27 @@ import { PreparednessPlan, PreparednessItem } from '../types';
 import { getPreparednessPlan, updatePreparednessItemStatus } from '../services/preparednessService';
 import Spinner from './common/Spinner';
 import { ShieldCheckIcon, AlertTriangleIcon } from './icons';
+import { usePersistentState } from '../hooks/usePersistentState';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 const PreparednessDashboard: React.FC = () => {
-    const [plan, setPlan] = useState<PreparednessPlan | null>(null);
+    const [plan, setPlan] = usePersistentState<PreparednessPlan | null>('preparednessPlan', null);
     const [isLoading, setIsLoading] = useState(true);
+    const isOnline = useOnlineStatus();
 
     useEffect(() => {
-        getPreparednessPlan().then(data => {
-            setPlan(data);
+        if (!plan && isOnline) {
+            getPreparednessPlan().then(data => {
+                setPlan(data);
+                setIsLoading(false);
+            });
+        } else {
             setIsLoading(false);
-        });
-    }, []);
+        }
+    }, [plan, isOnline, setPlan]);
 
     const handleStatusChange = async (item: PreparednessItem, newStatus: 'complete' | 'incomplete') => {
-        if (!plan) return;
+        if (!plan || !isOnline) return;
 
         // Optimistic update
         const originalItems = plan.items;
@@ -37,7 +44,7 @@ const PreparednessDashboard: React.FC = () => {
     }
 
     if (!plan) {
-        return <div className="p-4 text-gray-500 dark:text-gray-400">Could not load preparedness plan.</div>;
+        return <div className="p-4 text-gray-500 dark:text-gray-400">Could not load preparedness plan. Please check your connection.</div>;
     }
 
     const completedItems = plan.items.filter(i => i.status === 'complete').length;
@@ -64,7 +71,8 @@ const PreparednessDashboard: React.FC = () => {
                             type="checkbox"
                             checked={item.status === 'complete'}
                             onChange={(e) => handleStatusChange(item, e.target.checked ? 'complete' : 'incomplete')}
-                            className="mt-1 h-5 w-5 rounded bg-gray-200 dark:bg-crisis-accent border-gray-400 dark:border-gray-500 text-blue-500 focus:ring-blue-600"
+                            disabled={!isOnline}
+                            className="mt-1 h-5 w-5 rounded bg-gray-200 dark:bg-crisis-accent border-gray-400 dark:border-gray-500 text-blue-500 focus:ring-blue-600 disabled:cursor-not-allowed"
                         />
                         <div className="flex-1">
                             <h4 className={`font-semibold text-gray-800 dark:text-gray-200 ${item.status === 'complete' ? 'line-through text-gray-500' : ''}`}>{item.name}</h4>
@@ -76,6 +84,7 @@ const PreparednessDashboard: React.FC = () => {
                         }
                     </div>
                 ))}
+                {!isOnline && <p className="text-center text-sm text-yellow-600 dark:text-yellow-400">You are offline. Status changes will not be saved.</p>}
             </div>
         </div>
     );

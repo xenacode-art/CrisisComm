@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Member, VoiceNote } from '../types';
 import { addMemberVoiceNote, deleteMemberVoiceNote } from '../services/mockApiService';
 import { MicIcon, StopCircleIcon, TrashIcon } from './icons';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface VoiceNoteHandlerProps {
     member: Member;
@@ -14,8 +15,13 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
     const [isProcessing, setIsProcessing] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
+    const isOnline = useOnlineStatus();
 
     const handleStartRecording = async () => {
+        if (!isOnline) {
+            alert("Cannot record voice notes while offline.");
+            return;
+        }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaRecorder = new MediaRecorder(stream);
@@ -63,7 +69,10 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
     };
 
     const handleDeleteVoiceNote = async (noteToDelete: VoiceNote) => {
-        if (!noteToDelete) return;
+        if (!noteToDelete || !isOnline) {
+             if (!isOnline) alert("Cannot delete voice notes while offline.");
+             return;
+        }
 
         // Revoke the local blob URL to free up memory
         URL.revokeObjectURL(noteToDelete.url);
@@ -87,7 +96,8 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
                             <audio src={note.url} controls className="w-full h-8 rounded-md bg-gray-200 dark:bg-crisis-accent" />
                             <button
                                 onClick={() => handleDeleteVoiceNote(note)}
-                                className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
+                                disabled={!isOnline}
+                                className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
                                 aria-label="Delete voice note"
                             >
                                 <TrashIcon className="w-5 h-5" />
@@ -110,7 +120,9 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
             ) : (
                 <button
                     onClick={handleStartRecording}
-                    className="w-full flex items-center justify-center space-x-2 text-blue-600 dark:text-blue-400 border-2 border-dashed border-gray-400 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-700 dark:hover:text-white hover:bg-blue-500/10 rounded-lg p-2 transition"
+                    disabled={!isOnline}
+                    className="w-full flex items-center justify-center space-x-2 text-blue-600 dark:text-blue-400 border-2 border-dashed border-gray-400 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-700 dark:hover:text-white hover:bg-blue-500/10 rounded-lg p-2 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:text-gray-500"
+                    title={!isOnline ? "Unavailable while offline" : ""}
                 >
                     <MicIcon className="w-5 h-5" />
                     <span>{hasVoiceNotes ? 'Record Another Note' : 'Record Voice Note'}</span>

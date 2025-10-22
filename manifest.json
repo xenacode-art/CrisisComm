@@ -1,0 +1,8 @@
+{
+  "short_name": "CrisisComm",
+  "name": "CrisisComm - Emergency Family Communication Hub",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#121826",
+  "background_color": "#ffffff"
+}

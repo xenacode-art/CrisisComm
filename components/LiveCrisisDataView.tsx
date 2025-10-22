@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CrisisEvent, Coordinates } from '../types';
 import Spinner from './common/Spinner';
 import { AlertTriangleIcon } from './icons';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface LiveCrisisDataViewProps {
     crisisEvents: CrisisEvent[];
@@ -28,11 +29,20 @@ const SectionHeader: React.FC<{ title: string; source: string; }> = ({ title, so
 
 const LiveCrisisDataView: React.FC<LiveCrisisDataViewProps> = ({ crisisEvents, isLoading, onRefresh }) => {
     const [lastUpdated, setLastUpdated] = useState(new Date());
+    const isOnline = useOnlineStatus();
 
     const handleRefresh = () => {
+        if (!isOnline) return;
         onRefresh();
         setLastUpdated(new Date());
     };
+
+    useEffect(() => {
+      // If we come back online and there's no fresh data, refresh
+      if (isOnline && crisisEvents.length === 0) {
+        onRefresh();
+      }
+    }, [isOnline, crisisEvents, onRefresh]);
 
     const earthquake = crisisEvents.find(e => e.type === 'earthquake');
 
@@ -57,14 +67,15 @@ const LiveCrisisDataView: React.FC<LiveCrisisDataViewProps> = ({ crisisEvents, i
                 <h2 className="text-lg sm:text-xl font-bold text-white text-center sm:text-left">📡 Live Crisis Data Feed</h2>
                 <button
                     onClick={handleRefresh}
-                    disabled={isLoading}
+                    disabled={isLoading || !isOnline}
                     className="w-full sm:w-auto bg-blue-600/50 hover:bg-blue-500/50 text-white text-xs font-bold py-2 px-3 rounded-md transition disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    title={!isOnline ? "Unavailable while offline" : ""}
                 >
                     {isLoading ? 'Refreshing...' : 'Refresh Data'}
                 </button>
             </header>
 
-            {isLoading && !earthquake ? (
+            {(isLoading && isOnline) && !earthquake ? (
                 <div className="flex justify-center items-center h-64"><Spinner /></div>
             ) : (
                 <div className="mt-4 space-y-4">
@@ -84,13 +95,17 @@ const LiveCrisisDataView: React.FC<LiveCrisisDataViewProps> = ({ crisisEvents, i
                     ) : (
                         <div>
                             <SectionHeader title="Active Earthquake" source="USGS" />
-                            <p className="text-gray-400 py-4 text-center">✓ No significant earthquake activity detected in the area.</p>
+                            <p className="text-gray-400 py-4 text-center">
+                                {isOnline ? '✓ No significant earthquake activity detected in the area.' : 'Data unavailable offline.'}
+                            </p>
                         </div>
                     )}
 
                     <div>
                         <SectionHeader title="Weather Alerts" source="NOAA / NWS" />
-                        <p className="text-gray-400 py-4 text-center">✓ No severe weather alerts in effect.</p>
+                         <p className="text-gray-400 py-4 text-center">
+                            {isOnline ? '✓ No severe weather alerts in effect.' : 'Data unavailable offline.'}
+                         </p>
                     </div>
 
                     <div>
@@ -99,11 +114,11 @@ const LiveCrisisDataView: React.FC<LiveCrisisDataViewProps> = ({ crisisEvents, i
                              <span className="text-gray-400">AQI:</span>
                              <span className="font-semibold text-right px-3 py-1 rounded-full bg-green-500/20 text-green-300">42 (Good)</span>
                          </div>
-                        <p className="text-gray-400 py-2 text-center text-sm">Safe to be outside.</p>
+                        <p className="text-gray-400 py-2 text-center text-sm">Safe to be outside. (Mock Data)</p>
                     </div>
 
                     <footer className="text-center text-xs text-gray-500 pt-4 border-t border-gray-700">
-                        Last updated: {getTimeAgo(lastUpdated)}
+                        {isOnline ? `Last updated: ${getTimeAgo(lastUpdated)}` : "Displaying last known data from when you were online."}
                     </footer>
                 </div>
             )}

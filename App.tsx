@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react';
 import FamilyCircleSetup from './components/FamilyCircleSetup';
 import { FamilyCircle, CrisisData, MultiAgentAIResponse, Coordinates, Member, CrisisEvent } from './types';
 import { getFamilyCircle, startCrisisSimulation } from './services/mockApiService';
 import { fetchEarthquakeData } from './services/usgsService';
-// import { fetchWeatherAlerts } from './services/noaaService';
 import { generateMultiAgentResponse } from './services/geminiService';
+import { usePersistentState } from './hooks/usePersistentState';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 
 import Spinner from './components/common/Spinner';
 import MemberStatusCard from './components/MemberStatusCard';
@@ -13,6 +14,7 @@ import AiPlanView from './components/AiPlanView';
 import { AiIcon, SunIcon, MoonIcon, AlertTriangleIcon, UsersIcon, MapIcon, RssIcon } from './components/icons';
 import PreparednessDashboard from './components/PreparednessDashboard';
 import LiveCrisisDataView from './components/LiveCrisisDataView';
+import OfflineIndicator from './components/OfflineIndicator';
 
 const DEFAULT_LOCATION: Coordinates = { lat: 37.7749, lng: -122.4194 }; // San Francisco City Hall
 
@@ -20,15 +22,7 @@ type View = 'crisis' | 'preparedness';
 type CrisisTab = 'status' | 'map' | 'ai' | 'data';
 
 const useTheme = (): [string, () => void] => {
-    const [theme, setTheme] = useState(() => {
-        if (typeof window !== 'undefined' && window.localStorage) {
-            const storedTheme = window.localStorage.getItem('theme');
-            if (storedTheme) {
-                return storedTheme;
-            }
-        }
-        return 'dark';
-    });
+    const [theme, setTheme] = usePersistentState<string>('theme', 'dark');
 
     const toggleTheme = () => {
         setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -40,18 +34,18 @@ const useTheme = (): [string, () => void] => {
         } else {
             document.documentElement.classList.remove('dark');
         }
-        localStorage.setItem('theme', theme);
     }, [theme]);
 
     return [theme, toggleTheme];
 };
 
 const App: React.FC = () => {
-  const [familyCircle, setFamilyCircle] = useState<FamilyCircle | null>(null);
+  const [familyCircle, setFamilyCircle] = usePersistentState<FamilyCircle | null>('familyCircle', null);
   const [isLoading, setIsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocationLoading, setIsLocationLoading] = useState(true);
+  const isOnline = useOnlineStatus();
   
   useTheme(); // Initialize theme hook at the root
 
@@ -60,14 +54,19 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // Fetch family circle
-    getFamilyCircle().then(circle => {
-      setFamilyCircle(circle);
-      setIsLoading(false);
-    });
+    // If we have a stored family circle, we can show the dashboard immediately.
+    if (familyCircle) {
+        setIsLoading(false);
+    } else {
+        // Otherwise, check mock API (simulates first-time load)
+        getFamilyCircle().then(circle => {
+            if (circle) setFamilyCircle(circle);
+            setIsLoading(false);
+        });
+    }
 
     // Fetch user location
-    if (navigator.geolocation) {
+    if (isOnline && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setUserLocation({
@@ -86,11 +85,15 @@ const App: React.FC = () => {
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     } else {
-        setLocationError("Geolocation is not supported by your browser. Using a default location.");
+        if (!isOnline) {
+             setLocationError("Location services unavailable offline. Using last known or default location.");
+        } else {
+             setLocationError("Geolocation is not supported by your browser. Using a default location.");
+        }
         setUserLocation(DEFAULT_LOCATION);
         setIsLocationLoading(false);
     }
-  }, []);
+  }, [isOnline]); // Refetch location if we come back online
 
   if (isLoading || isLocationLoading) {
     return (
@@ -102,9 +105,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-crisis-dark text-gray-800 dark:text-gray-200 font-sans">
+      {!isOnline && <OfflineIndicator />}
       {familyCircle ? (
         <DashboardContainer 
-            initialFamilyCircle={familyCircle} 
+            familyCircle={familyCircle}
+            onFamilyCircleUpdate={setFamilyCircle}
             userLocation={userLocation!}
             locationError={locationError}
         />
@@ -116,17 +121,18 @@ const App: React.FC = () => {
 };
 
 const DashboardContainer: React.FC<{ 
-    initialFamilyCircle: FamilyCircle,
+    familyCircle: FamilyCircle,
+    onFamilyCircleUpdate: Dispatch<SetStateAction<FamilyCircle | null>>,
     userLocation: Coordinates,
     locationError: string | null 
-}> = ({ initialFamilyCircle, userLocation, locationError }) => {
+}> = ({ familyCircle, onFamilyCircleUpdate, userLocation, locationError }) => {
     const [view, setView] = useState<View>('crisis');
     const [theme, toggleTheme] = useTheme();
 
     return (
         <main className="p-4 lg:p-6 space-y-6">
             <header className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 text-center sm:text-left">Crisis Command Center: <span className="text-blue-600 dark:text-blue-400">{initialFamilyCircle.name}</span></h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 text-center sm:text-left">Crisis Command Center: <span className="text-blue-600 dark:text-blue-400">{familyCircle.name}</span></h1>
                 <div className="flex items-center space-x-2">
                     <nav className="flex space-x-2 p-1 bg-gray-200 dark:bg-crisis-accent rounded-lg">
                         <button onClick={() => setView('crisis')} className={`px-4 py-2 text-sm font-semibold rounded-md transition ${view === 'crisis' ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-crisis-light'}`}>
@@ -151,7 +157,7 @@ const DashboardContainer: React.FC<{
                     <p className="text-sm font-medium">{locationError}</p>
                  </div>
             )}
-            {view === 'crisis' ? <CrisisView familyCircle={initialFamilyCircle} userLocation={userLocation} /> : <PreparednessDashboard />}
+            {view === 'crisis' ? <CrisisView familyCircle={familyCircle} onFamilyCircleUpdate={onFamilyCircleUpdate} userLocation={userLocation} /> : <PreparednessDashboard />}
         </main>
     )
 }
@@ -173,20 +179,25 @@ const TabButton: React.FC<{ icon: React.ReactNode, label: string, isActive: bool
 };
 
 
-const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinates }> = ({ familyCircle: initialFamilyCircle, userLocation }) => {
-    const [familyCircle, setFamilyCircle] = useState<FamilyCircle>(initialFamilyCircle);
-    const [crisisData, setCrisisData] = useState<CrisisData>({ live_crisis_events: [] });
-    const [aiResponse, setAiResponse] = useState<MultiAgentAIResponse | null>(null);
+const CrisisView: React.FC<{ 
+    familyCircle: FamilyCircle, 
+    onFamilyCircleUpdate: Dispatch<SetStateAction<FamilyCircle | null>>,
+    userLocation: Coordinates 
+}> = ({ familyCircle, onFamilyCircleUpdate, userLocation }) => {
+    const [crisisData, setCrisisData] = usePersistentState<CrisisData>('crisisData', { live_crisis_events: [] });
+    const [aiResponse, setAiResponse] = usePersistentState<MultiAgentAIResponse | null>('aiResponse', null);
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [isCrisisDataLoading, setIsCrisisDataLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<CrisisTab>('status');
+    const isOnline = useOnlineStatus();
     
     // Simulate live member status updates
     useEffect(() => {
-        const stopSimulation = startCrisisSimulation(initialFamilyCircle);
+        if (!isOnline) return;
+        const stopSimulation = startCrisisSimulation(familyCircle);
         const interval = setInterval(() => {
             getFamilyCircle().then(circle => {
-                if (circle) setFamilyCircle(c => ({...c, members: c.members.map(m => circle.members.find(nm => nm.id === m.id) || m) }));
+                if (circle) onFamilyCircleUpdate(circle);
             });
         }, 2000);
 
@@ -194,15 +205,19 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
             stopSimulation();
             clearInterval(interval);
         };
-    }, [initialFamilyCircle]);
+    }, [familyCircle, isOnline, onFamilyCircleUpdate]);
 
     const fetchCrisisData = useCallback(async () => {
+        if (!isOnline) {
+            setIsCrisisDataLoading(false);
+            return;
+        }
         setIsCrisisDataLoading(true);
         const earthquakeEvents = await fetchEarthquakeData(userLocation);
         // const weatherEvents = await fetchWeatherAlerts(userLocation);
         setCrisisData({ live_crisis_events: [...earthquakeEvents] });
         setIsCrisisDataLoading(false);
-    }, [userLocation]);
+    }, [userLocation, isOnline, setCrisisData]);
 
     // Fetch live crisis data
     useEffect(() => {
@@ -210,6 +225,10 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
     }, [fetchCrisisData]);
 
     const handleGeneratePlan = useCallback(async () => {
+        if (!isOnline) {
+            alert("Cannot generate AI plan while offline.");
+            return;
+        }
         setIsAiLoading(true);
         try {
             const response = await generateMultiAgentResponse(familyCircle, crisisData, userLocation);
@@ -221,13 +240,16 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
         } finally {
             setIsAiLoading(false);
         }
-    }, [familyCircle, crisisData, userLocation]);
+    }, [familyCircle, crisisData, userLocation, isOnline, setAiResponse]);
     
     const handleMemberUpdate = (updatedMember: Member) => {
-        setFamilyCircle(currentCircle => ({
-            ...currentCircle,
-            members: currentCircle.members.map(m => m.id === updatedMember.id ? updatedMember : m),
-        }));
+        onFamilyCircleUpdate(currentCircle => {
+            if (!currentCircle) return null;
+            return {
+                ...currentCircle,
+                members: currentCircle.members.map(m => m.id === updatedMember.id ? updatedMember : m),
+            };
+        });
     };
 
     const meetupPoints = useMemo(() => aiResponse?.logistics_plan.meetup_points || [], [aiResponse]);
@@ -245,13 +267,13 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
             case 'map':
                 return (
                     <div className="h-[55vh] sm:h-[65vh] bg-white dark:bg-crisis-light rounded-lg overflow-hidden shadow-lg">
-                        {isCrisisDataLoading ? <Spinner /> : <FamilyMapView members={familyCircle.members} crisisEvents={crisisData.live_crisis_events} meetupPoints={meetupPoints} />}
+                        {(isCrisisDataLoading && isOnline) ? <Spinner /> : <FamilyMapView members={familyCircle.members} crisisEvents={crisisData.live_crisis_events} meetupPoints={meetupPoints} />}
                     </div>
                 );
             case 'ai':
                  return <AiPlanView response={aiResponse} isLoading={isAiLoading} onRegenerate={handleGeneratePlan} />;
             case 'data':
-                return <LiveCrisisDataView crisisEvents={crisisData.live_crisis_events} userLocation={userLocation} isLoading={isCrisisDataLoading} onRefresh={fetchCrisisData} />;
+                return <LiveCrisisDataView crisisEvents={crisisData.live_crisis_events} userLocation={userLocation} isLoading={isCrisisDataLoading && isOnline} onRefresh={fetchCrisisData} />;
             default:
                 return null;
         }
@@ -269,8 +291,9 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
                      </nav>
                      <button 
                         onClick={handleGeneratePlan}
-                        disabled={isAiLoading}
-                        className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg transition"
+                        disabled={isAiLoading || !isOnline}
+                        className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition"
+                        title={!isOnline ? "Unavailable while offline" : ""}
                     >
                         <AiIcon className="w-5 h-5" />
                         {isAiLoading ? 'Analyzing...' : (aiResponse ? 'Regenerate AI Plan' : 'Generate AI Plan')}
