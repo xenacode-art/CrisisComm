@@ -1,5 +1,5 @@
 
-import { FamilyCircle, Member, StatusType } from '../types';
+import { FamilyCircle, Member, StatusType, VoiceNote } from '../types';
 
 let mockFamilyCircle: FamilyCircle | null = null;
 
@@ -9,28 +9,32 @@ const initialMemberData: Omit<Member, 'id' | 'phone' | 'name'>[] = [
         isLocationShared: true,
         last_update: new Date().toISOString(),
         location: { lat: 37.79, lng: -122.41, accuracy: 50 }, // Near Coit Tower, 50m accuracy
-        message: "Haven't heard anything yet."
+        message: "Haven't heard anything yet.",
+        voiceNotes: [],
     },
     {
         status: StatusType.UNKNOWN,
         isLocationShared: true,
         last_update: new Date().toISOString(),
         location: { lat: 37.77, lng: -122.45, accuracy: 150 }, // Near Golden Gate Park, 150m accuracy
-        message: "Haven't heard anything yet."
+        message: "Haven't heard anything yet.",
+        voiceNotes: [],
     },
     {
         status: StatusType.UNKNOWN,
         isLocationShared: true,
         last_update: new Date().toISOString(),
         location: { lat: 37.75, lng: -122.42, accuracy: 25 }, // Mission District, 25m accuracy
-        message: "Haven't heard anything yet."
+        message: "Haven't heard anything yet.",
+        voiceNotes: [],
     },
     {
         status: StatusType.UNKNOWN,
         isLocationShared: true,
         last_update: new Date().toISOString(),
         location: { lat: 37.80, lng: -122.43, accuracy: 500 }, // Marina, 500m accuracy (poor)
-        message: "Haven't heard anything yet."
+        message: "Haven't heard anything yet.",
+        voiceNotes: [],
     },
 ];
 
@@ -102,18 +106,23 @@ export const getFamilyCircle = (): Promise<FamilyCircle | null> => {
     return Promise.resolve(mockFamilyCircle);
 };
 
-export const updateMemberVoiceNote = (memberId: string, voiceNoteUrl: string): Promise<Member> => {
+export const addMemberVoiceNote = (memberId: string, voiceNoteUrl: string): Promise<Member> => {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             if (mockFamilyCircle) {
                 const member = mockFamilyCircle.members.find(m => m.id === memberId);
                 if (member) {
-                    member.voiceNoteUrl = voiceNoteUrl;
-                    member.last_update = new Date().toISOString();
-                    // If a voice note is added/deleted, clear the old text message for clarity
-                    if (voiceNoteUrl) {
-                        member.message = "Sent a voice note.";
+                    if (!member.voiceNotes) {
+                        member.voiceNotes = [];
                     }
+                    const newVoiceNote: VoiceNote = {
+                        id: `vn_${Date.now()}`,
+                        url: voiceNoteUrl,
+                        createdAt: new Date().toISOString(),
+                    };
+                    member.voiceNotes.push(newVoiceNote);
+                    member.last_update = new Date().toISOString();
+                    member.message = "Sent a new voice note.";
                     resolve(member);
                 } else {
                     reject(new Error("Member not found"));
@@ -124,6 +133,29 @@ export const updateMemberVoiceNote = (memberId: string, voiceNoteUrl: string): P
         }, 300);
     });
 };
+
+export const deleteMemberVoiceNote = (memberId: string, voiceNoteId: string): Promise<Member> => {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if (mockFamilyCircle) {
+                const member = mockFamilyCircle.members.find(m => m.id === memberId);
+                if (member && member.voiceNotes) {
+                    member.voiceNotes = member.voiceNotes.filter(vn => vn.id !== voiceNoteId);
+                    member.last_update = new Date().toISOString();
+                    if (member.voiceNotes.length === 0 && member.message?.includes("voice note")) {
+                        member.message = "Cleared voice notes.";
+                    }
+                    resolve(member);
+                } else {
+                    reject(new Error("Member or voice note not found"));
+                }
+            } else {
+                reject(new Error("Family circle not found"));
+            }
+        }, 300);
+    });
+};
+
 
 export const updateMemberLocationSharing = (memberId: string, isShared: boolean): Promise<Member> => {
     return new Promise((resolve, reject) => {

@@ -1,6 +1,7 @@
+
 import React, { useState, useRef } from 'react';
-import { Member } from '../types';
-import { updateMemberVoiceNote } from '../services/mockApiService';
+import { Member, VoiceNote } from '../types';
+import { addMemberVoiceNote, deleteMemberVoiceNote } from '../services/mockApiService';
 import { MicIcon, StopCircleIcon, TrashIcon } from './icons';
 
 interface VoiceNoteHandlerProps {
@@ -33,12 +34,7 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
                 audioChunksRef.current = [];
                 
                 try {
-                    // We're "deleting" the old URL if one exists.
-                    // In a real app, this should be handled on the server.
-                    if (member.voiceNoteUrl) {
-                        URL.revokeObjectURL(member.voiceNoteUrl);
-                    }
-                    const updatedMember = await updateMemberVoiceNote(member.id, audioUrl);
+                    const updatedMember = await addMemberVoiceNote(member.id, audioUrl);
                     onUpdate(updatedMember);
                 } catch (error) {
                     console.error("Failed to save voice note:", error);
@@ -66,44 +62,45 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
         }
     };
 
-    const handleDeleteVoiceNote = async () => {
-        if (!member.voiceNoteUrl) return;
+    const handleDeleteVoiceNote = async (noteToDelete: VoiceNote) => {
+        if (!noteToDelete) return;
 
         // Revoke the local blob URL to free up memory
-        URL.revokeObjectURL(member.voiceNoteUrl);
+        URL.revokeObjectURL(noteToDelete.url);
         
         try {
-            // The service will set the URL to an empty string
-            const updatedMember = await updateMemberVoiceNote(member.id, '');
+            const updatedMember = await deleteMemberVoiceNote(member.id, noteToDelete.id);
             onUpdate(updatedMember);
         } catch (error) {
              console.error("Failed to delete voice note:", error);
         }
     };
 
-    if (member.voiceNoteUrl) {
-        return (
-            <div className="flex items-center space-x-2 mt-2">
-                <audio src={member.voiceNoteUrl} controls className="w-full h-8 rounded-md bg-gray-200 dark:bg-crisis-accent" />
-                <button
-                    onClick={handleDeleteVoiceNote}
-                    className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
-                    aria-label="Delete voice note"
-                >
-                    <TrashIcon className="w-5 h-5" />
-                </button>
-            </div>
-        );
-    }
-    
-    if (isProcessing) {
-        return <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center py-2">Processing voice note...</p>;
-    }
+    const hasVoiceNotes = member.voiceNotes && member.voiceNotes.length > 0;
 
     return (
-        <div className="mt-2">
-            {isRecording ? (
-                <button
+        <div className="mt-2 space-y-2">
+            {hasVoiceNotes && (
+                <div className="space-y-2">
+                    {member.voiceNotes?.slice().reverse().map((note) => (
+                        <div key={note.id} className="flex items-center space-x-2">
+                            <audio src={note.url} controls className="w-full h-8 rounded-md bg-gray-200 dark:bg-crisis-accent" />
+                            <button
+                                onClick={() => handleDeleteVoiceNote(note)}
+                                className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
+                                aria-label="Delete voice note"
+                            >
+                                <TrashIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+            
+            {isProcessing ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">Processing voice note...</p>
+            ) : isRecording ? (
+                 <button
                     onClick={handleStopRecording}
                     className="w-full flex items-center justify-center space-x-2 text-red-500 dark:text-red-400 border-2 border-red-500/50 bg-red-500/10 hover:bg-red-500/20 rounded-lg p-2 transition animate-pulse"
                 >
@@ -116,7 +113,7 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
                     className="w-full flex items-center justify-center space-x-2 text-blue-600 dark:text-blue-400 border-2 border-dashed border-gray-400 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-700 dark:hover:text-white hover:bg-blue-500/10 rounded-lg p-2 transition"
                 >
                     <MicIcon className="w-5 h-5" />
-                    <span>Record Voice Note</span>
+                    <span>{hasVoiceNotes ? 'Record Another Note' : 'Record Voice Note'}</span>
                 </button>
             )}
         </div>

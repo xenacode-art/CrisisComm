@@ -12,6 +12,12 @@ export interface Coordinates {
   accuracy?: number; // Accuracy in meters
 }
 
+export interface VoiceNote {
+  id: string;
+  url: string;
+  createdAt: string;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -19,7 +25,7 @@ export interface Member {
   status: StatusType;
   isLocationShared: boolean;
   message?: string;
-  voiceNoteUrl?: string;
+  voiceNotes?: VoiceNote[];
   location?: Coordinates;
   last_update: string;
 }
