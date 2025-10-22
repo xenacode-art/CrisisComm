@@ -2,31 +2,42 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Member, CrisisEvent, MeetupPoint, StatusType } from '../types';
 import { loadGoogleMapsScript } from '../services/googleMapsLoader';
 import Spinner from './common/Spinner';
-import { MapIcon } from './icons';
+import { MapIcon, TrophyIcon, UserIcon } from './icons';
 
-// Add necessary type definitions for Google Maps to be used in this component.
-// These are simplified and scoped for what's used below.
-// FIX: Removed incorrect type aliases that caused errors. The full google.maps types will be used directly.
+// FIX: Add a declaration for the 'google' global variable to resolve TypeScript errors.
+// Replaced `declare const google: any;` with a more specific `declare global` block for `google.maps`
 declare global {
-    namespace google.maps {
-        class Map {
-            constructor(mapDiv: HTMLElement | null, opts?: any);
-            fitBounds(bounds: LatLngBounds, padding?: number): void;
-        }
-        class LatLngBounds {
-            constructor(sw?: any, ne?: any);
-            extend(point: any): void;
-            isEmpty(): boolean;
-        }
-        namespace marker {
-            class AdvancedMarkerElement {
-                constructor(options?: any);
-                map: Map | null;
-            }
-        }
+  namespace google.maps {
+    class Map {
+      constructor(el: HTMLElement, opts: any);
+      fitBounds(bounds: LatLngBounds, padding: number): void;
     }
+    class Circle {
+      constructor(opts: any);
+      setMap(map: Map | null): void;
+    }
+    namespace marker {
+      class AdvancedMarkerElement {
+        constructor(opts: any);
+        set map(map: Map | null);
+        get map(): Map | null;
+      }
+    }
+    class LatLngBounds {
+      constructor(sw?: any, ne?: any);
+      extend(point: any): void;
+      isEmpty(): boolean;
+    }
+  }
 }
 
+// Define a type for the loaded library classes to ensure type safety.
+type MapLibraries = {
+    Map: typeof google.maps.Map;
+    Circle: typeof google.maps.Circle;
+    AdvancedMarkerElement: typeof google.maps.marker.AdvancedMarkerElement;
+    LatLngBounds: typeof google.maps.LatLngBounds;
+};
 
 interface FamilyMapViewProps {
     members: Member[];
@@ -64,13 +75,14 @@ const crisisColors: Record<string, string> = {
 
 const FamilyMapView: React.FC<FamilyMapViewProps> = ({ members, crisisEvents, meetupPoints }) => {
     const mapRef = useRef<HTMLDivElement>(null);
-    // FIX: Use full google.maps.Map type.
     const [map, setMap] = useState<google.maps.Map | null>(null);
+    const [mapLibraries, setMapLibraries] = useState<MapLibraries | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    // FIX: Use full google.maps.marker.AdvancedMarkerElement type.
     const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+    const circlesRef = useRef<google.maps.Circle[]>([]);
 
+    // Effect for ONE-TIME map and library initialization
     useEffect(() => {
         const initMap = async () => {
             try {
@@ -80,11 +92,27 @@ const FamilyMapView: React.FC<FamilyMapViewProps> = ({ members, crisisEvents, me
                     throw new Error("Google Maps script loaded, but `importLibrary` is not available.");
                 }
 
-                // FIX: Cast to the correct constructor type `typeof google.maps.Map`. The type alias `GoogleMap` referred to an instance, not the class.
-                const { Map } = await window.google.maps.importLibrary("maps") as { Map: typeof google.maps.Map };
+                const [mapsLib, markerLib, coreLib] = await Promise.all([
+                    window.google.maps.importLibrary("maps"),
+                    window.google.maps.importLibrary("marker"),
+                    window.google.maps.importLibrary("core"),
+                ]);
+
+                const loadedLibs: MapLibraries = {
+                    Map: mapsLib.Map,
+                    Circle: mapsLib.Circle,
+                    AdvancedMarkerElement: markerLib.AdvancedMarkerElement,
+                    LatLngBounds: coreLib.LatLngBounds,
+                };
+                
+                if (Object.values(loadedLibs).some(lib => !lib)) {
+                    throw new Error("Failed to load necessary Google Maps components. This may be due to an API key issue.");
+                }
+
+                setMapLibraries(loadedLibs);
                 
                 if (mapRef.current) {
-                    const newMap = new Map(mapRef.current, {
+                    const newMap = new loadedLibs.Map(mapRef.current, {
                         center: { lat: 37.7749, lng: -122.4194 },
                         zoom: 10,
                         mapId: 'CRISIS_MAP_ID',
@@ -95,14 +123,13 @@ const FamilyMapView: React.FC<FamilyMapViewProps> = ({ members, crisisEvents, me
                 }
             } catch (e: any) {
                 console.error("Failed to initialize Google Map:", e);
-                // This catch block now handles authentication errors from importLibrary
                 let userMessage = "An unknown error occurred while loading the map.";
                 const errorMessage = e.message.toLowerCase();
 
-                if (errorMessage.includes("invalidkey") || errorMessage.includes("apinotactivated")) {
-                    userMessage = "The interactive map could not be loaded. The API key must be enabled for the 'Maps JavaScript API' in your Google Cloud project.";
+                if (errorMessage.includes("invalidkey") || errorMessage.includes("apinotactivated") || errorMessage.includes("key issue")) {
+                    userMessage = "The interactive map could not be loaded. The API key may be invalid or not configured for the 'Maps JavaScript API'.";
                 } else if (errorMessage.includes("referer")) {
-                    userMessage = "The interactive map could not be loaded. The current website is not authorized to use this API key.";
+                    userMessage = "The interactive map could not be loaded. This website is not authorized to use the provided API key.";
                 }
                 setError(userMessage);
             } finally {
@@ -113,112 +140,143 @@ const FamilyMapView: React.FC<FamilyMapViewProps> = ({ members, crisisEvents, me
         initMap();
     }, []);
 
+    // Effect for UPDATING markers when data changes
     useEffect(() => {
-        if (!map) return;
+        if (!map || !mapLibraries) return;
 
-        const setupMarkers = async () => {
-            try {
-                if (!window.google?.maps?.importLibrary) return;
+        try {
+            markersRef.current.forEach(marker => { marker.map = null; });
+            markersRef.current = [];
+            circlesRef.current.forEach(circle => circle.setMap(null));
+            circlesRef.current = [];
 
-                // FIX: Cast to the correct constructor type `typeof google.maps.marker.AdvancedMarkerElement`. The type alias `GoogleAdvancedMarkerElement` referred to an instance, not the class.
-                const { AdvancedMarkerElement } = await window.google.maps.importLibrary("marker") as { AdvancedMarkerElement: typeof google.maps.marker.AdvancedMarkerElement };
-                // FIX: Cast to the correct constructor type `typeof google.maps.LatLngBounds`. The type alias `GoogleLatLngBounds` referred to an instance, not the class.
-                const { LatLngBounds } = await window.google.maps.importLibrary("core") as { LatLngBounds: typeof google.maps.LatLngBounds };
+            const { AdvancedMarkerElement, LatLngBounds, Circle } = mapLibraries;
 
-                markersRef.current.forEach(marker => {
-                    marker.map = null;
+            const bounds = new LatLngBounds();
+            
+            members.filter(m => m.isLocationShared && m.location).forEach(member => {
+                const icon = document.createElement('img');
+                icon.src = getMemberMarkerIcon(statusColors[member.status]);
+                const marker = new AdvancedMarkerElement({
+                    position: member.location,
+                    map,
+                    title: `${member.name} (${member.status})`,
+                    content: icon,
                 });
-                markersRef.current = [];
-        
-                const bounds = new LatLngBounds();
-        
-                members.forEach(member => {
-                    if (member.location) {
-                        const icon = document.createElement('img');
-                        icon.src = getMemberMarkerIcon(statusColors[member.status]);
-                        const marker = new AdvancedMarkerElement({
-                            position: member.location,
-                            map,
-                            title: `${member.name} (${member.status})`,
-                            content: icon,
-                        });
-                        markersRef.current.push(marker);
-                        bounds.extend(member.location);
-                    }
-                });
-        
-                crisisEvents.forEach(event => {
-                    const icon = document.createElement('img');
-                    icon.src = getCrisisMarkerIcon(crisisColors[event.type] || crisisColors.default);
-                    const marker = new AdvancedMarkerElement({
-                        position: event.location,
+                markersRef.current.push(marker);
+                bounds.extend(member.location!);
+
+                if (member.location?.accuracy && member.location.accuracy > 0) {
+                    const accuracyCircle = new Circle({
+                        strokeColor: '#4A90E2',
+                        strokeOpacity: 0.8,
+                        strokeWeight: 1,
+                        fillColor: '#4A90E2',
+                        fillOpacity: 0.2,
                         map,
-                        title: event.title,
-                        content: icon,
+                        center: member.location,
+                        radius: member.location.accuracy,
                     });
-                    markersRef.current.push(marker);
-                    bounds.extend(event.location);
-                });
-                
-                meetupPoints.forEach(point => {
-                    const icon = document.createElement('img');
-                    icon.src = getMeetupMarkerIcon();
-                    const marker = new AdvancedMarkerElement({
-                        position: point.coordinates,
-                        map,
-                        title: `Meetup: ${point.name}`,
-                        content: icon,
-                    });
-                    markersRef.current.push(marker);
-                    bounds.extend(point.coordinates);
-                });
-        
-                if (!bounds.isEmpty()) {
-                    map.fitBounds(bounds, 100);
+                    circlesRef.current.push(accuracyCircle);
                 }
-            } catch (e) {
-                console.error("Error setting up map markers:", e);
-                setError("Could not display locations on the map.");
+            });
+
+            crisisEvents.forEach(event => {
+                const icon = document.createElement('img');
+                icon.src = getCrisisMarkerIcon(crisisColors[event.type] || crisisColors.default);
+                const marker = new AdvancedMarkerElement({
+                    position: event.location,
+                    map,
+                    title: event.title,
+                    content: icon,
+                });
+                markersRef.current.push(marker);
+                bounds.extend(event.location);
+            });
+            
+            meetupPoints.forEach(point => {
+                const icon = document.createElement('img');
+                icon.src = getMeetupMarkerIcon();
+                const marker = new AdvancedMarkerElement({
+                    position: point.coordinates,
+                    map,
+                    title: `Meetup: ${point.name}`,
+                    content: icon,
+                });
+                markersRef.current.push(marker);
+                bounds.extend(point.coordinates);
+            });
+
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, 100);
             }
-        };
+        } catch (e) {
+            console.error("Error setting up map markers:", e);
+            setError("An error occurred while displaying locations on the map. The map library may be unstable due to an API key issue.");
+        }
 
-        setupMarkers();
-
-    }, [map, members, crisisEvents, meetupPoints]);
+    }, [map, mapLibraries, members, crisisEvents, meetupPoints]);
 
     if (error) {
+        const membersToList = members.filter(m => m.isLocationShared && m.location);
         return (
-            <div className="flex flex-col items-center justify-center h-full bg-crisis-dark text-gray-400 p-4 text-center">
-                <div className="bg-red-900/50 text-red-300 p-4 rounded-lg mb-4 w-full">
-                    <h3 className="font-bold text-lg flex items-center justify-center"><MapIcon className="w-6 h-6 mr-2" /> Live Map Unavailable</h3>
+            <div className="flex flex-col h-full bg-white dark:bg-crisis-dark text-gray-700 dark:text-gray-300 p-4 overflow-hidden">
+                <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-700/50 text-red-800 dark:text-red-200 p-4 rounded-lg mb-4 text-center">
+                    <h3 className="font-bold text-lg flex items-center justify-center gap-2"><MapIcon className="w-6 h-6" /> Live Map Unavailable</h3>
                     <p className="text-sm mt-2">{error}</p>
                 </div>
-                <p className="mb-4">While the interactive map is down, here is the critical location information:</p>
-                <div className="w-full text-left space-y-4 max-h-80 overflow-y-auto p-2">
+                
+                <p className="text-sm text-center text-gray-500 dark:text-gray-400 mb-4">
+                    While the interactive map is down, here is the last known location information:
+                </p>
+
+                <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                     {meetupPoints.length > 0 && (
                         <div>
-                            <h4 className="font-semibold text-white text-lg mb-2">Recommended Meetup Points</h4>
+                            <h4 className="font-semibold text-gray-800 dark:text-gray-100 text-md mb-2 sticky top-0 bg-white dark:bg-crisis-dark py-1">
+                                AI-Recommended Meetup Points
+                            </h4>
                             <ul className="space-y-2">
                                 {meetupPoints.map(point => (
-                                    <li key={point.rank} className="bg-crisis-light p-3 rounded-md">
-                                        <p className="font-bold text-blue-300">{point.rank}. {point.name}</p>
-                                        <p className="text-sm">{point.address}</p>
+                                    <li key={point.rank} className="bg-gray-50 dark:bg-crisis-light p-3 rounded-md shadow-sm">
+                                        <div className="flex items-start gap-3">
+                                            <TrophyIcon className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
+                                            <div>
+                                                <p className="font-bold text-blue-700 dark:text-blue-300">{point.rank}. {point.name}</p>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400">{point.address}</p>
+                                            </div>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
                         </div>
                     )}
-                     {members.filter(m => m.location).length > 0 && (
+                     {membersToList.length > 0 && (
                         <div>
-                            <h4 className="font-semibold text-white text-lg mb-2 mt-4">Last Known Member Locations</h4>
+                            <h4 className="font-semibold text-gray-800 dark:text-gray-100 text-md mb-2 mt-4 sticky top-0 bg-white dark:bg-crisis-dark py-1">
+                                Last Known Member Locations
+                            </h4>
                              <ul className="space-y-2">
-                                {members.filter(m => m.location).map(member => (
-                                    <li key={member.name} className="bg-crisis-light p-3 rounded-md">
-                                        <p className="font-bold text-gray-200">{member.name} (<span style={{color: statusColors[member.status]}}>{member.status}</span>)</p>
-                                        <p className="text-sm">Lat: {member.location!.lat.toFixed(4)}, Lng: {member.location!.lng.toFixed(4)}</p>
+                                {membersToList.map(member => (
+                                    <li key={member.name} className="bg-gray-50 dark:bg-crisis-light p-3 rounded-md shadow-sm">
+                                        <div className="flex items-start gap-3">
+                                            <UserIcon className="w-5 h-5 mt-1 flex-shrink-0" style={{color: statusColors[member.status]}} />
+                                            <div>
+                                                <p className="font-bold text-gray-800 dark:text-gray-200">{member.name} (<span className="font-normal" style={{color: statusColors[member.status]}}>{member.status}</span>)</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                    Lat: {member.location!.lat.toFixed(4)}, Lng: {member.location!.lng.toFixed(4)}
+                                                    {member.location!.accuracy && ` (±${member.location!.accuracy}m accuracy)`}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
+                        </div>
+                    )}
+                    {membersToList.length === 0 && meetupPoints.length === 0 && (
+                         <div className="text-center text-gray-500 dark:text-gray-400 pt-10">
+                            <p>No location data available to display.</p>
                         </div>
                     )}
                 </div>
@@ -229,7 +287,7 @@ const FamilyMapView: React.FC<FamilyMapViewProps> = ({ members, crisisEvents, me
     return (
         <div className="h-full w-full relative">
             {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-crisis-dark/80 z-10">
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-crisis-dark/80 z-10">
                     <Spinner />
                 </div>
             )}

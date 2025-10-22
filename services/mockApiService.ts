@@ -6,26 +6,30 @@ let mockFamilyCircle: FamilyCircle | null = null;
 const initialMemberData: Omit<Member, 'id' | 'phone' | 'name'>[] = [
     {
         status: StatusType.UNKNOWN,
+        isLocationShared: true,
         last_update: new Date().toISOString(),
-        location: { lat: 37.79, lng: -122.41 }, // Near Coit Tower
+        location: { lat: 37.79, lng: -122.41, accuracy: 50 }, // Near Coit Tower, 50m accuracy
         message: "Haven't heard anything yet."
     },
     {
         status: StatusType.UNKNOWN,
+        isLocationShared: true,
         last_update: new Date().toISOString(),
-        location: { lat: 37.77, lng: -122.45 }, // Near Golden Gate Park
+        location: { lat: 37.77, lng: -122.45, accuracy: 150 }, // Near Golden Gate Park, 150m accuracy
         message: "Haven't heard anything yet."
     },
     {
         status: StatusType.UNKNOWN,
+        isLocationShared: true,
         last_update: new Date().toISOString(),
-        location: { lat: 37.75, lng: -122.42 }, // Mission District
+        location: { lat: 37.75, lng: -122.42, accuracy: 25 }, // Mission District, 25m accuracy
         message: "Haven't heard anything yet."
     },
     {
         status: StatusType.UNKNOWN,
+        isLocationShared: true,
         last_update: new Date().toISOString(),
-        location: { lat: 37.80, lng: -122.43 }, // Marina
+        location: { lat: 37.80, lng: -122.43, accuracy: 500 }, // Marina, 500m accuracy (poor)
         message: "Haven't heard anything yet."
     },
 ];
@@ -64,6 +68,7 @@ export const startCrisisSimulation = (circle: FamilyCircle): (() => void) => {
             mike.status = StatusType.SAFE;
             mike.message = "I'm okay, at home. Shaken up but safe.";
             mike.last_update = new Date().toISOString();
+            if (mike.location) mike.location.accuracy = 15; // Improved accuracy on check-in
         }
 
         // Simulate Emma needing HELP after some time
@@ -109,6 +114,25 @@ export const updateMemberVoiceNote = (memberId: string, voiceNoteUrl: string): P
                     if (voiceNoteUrl) {
                         member.message = "Sent a voice note.";
                     }
+                    resolve(member);
+                } else {
+                    reject(new Error("Member not found"));
+                }
+            } else {
+                reject(new Error("Family circle not found"));
+            }
+        }, 300);
+    });
+};
+
+export const updateMemberLocationSharing = (memberId: string, isShared: boolean): Promise<Member> => {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if (mockFamilyCircle) {
+                const member = mockFamilyCircle.members.find(m => m.id === memberId);
+                if (member) {
+                    member.isLocationShared = isShared;
+                    member.last_update = new Date().toISOString();
                     resolve(member);
                 } else {
                     reject(new Error("Member not found"));

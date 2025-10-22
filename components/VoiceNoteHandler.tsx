@@ -84,10 +84,10 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
     if (member.voiceNoteUrl) {
         return (
             <div className="flex items-center space-x-2 mt-2">
-                <audio src={member.voiceNoteUrl} controls className="w-full h-8 rounded-md bg-crisis-accent" />
+                <audio src={member.voiceNoteUrl} controls className="w-full h-8 rounded-md bg-gray-200 dark:bg-crisis-accent" />
                 <button
                     onClick={handleDeleteVoiceNote}
-                    className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
+                    className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
                     aria-label="Delete voice note"
                 >
                     <TrashIcon className="w-5 h-5" />
@@ -97,7 +97,7 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
     }
     
     if (isProcessing) {
-        return <p className="text-sm text-gray-400 mt-2 text-center py-2">Processing voice note...</p>;
+        return <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center py-2">Processing voice note...</p>;
     }
 
     return (
@@ -105,7 +105,7 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
             {isRecording ? (
                 <button
                     onClick={handleStopRecording}
-                    className="w-full flex items-center justify-center space-x-2 text-red-400 border-2 border-red-500/50 bg-red-500/10 hover:bg-red-500/20 rounded-lg p-2 transition animate-pulse"
+                    className="w-full flex items-center justify-center space-x-2 text-red-500 dark:text-red-400 border-2 border-red-500/50 bg-red-500/10 hover:bg-red-500/20 rounded-lg p-2 transition animate-pulse"
                 >
                     <StopCircleIcon className="w-5 h-5" />
                     <span>Stop Recording</span>
@@ -113,7 +113,7 @@ const VoiceNoteHandler: React.FC<VoiceNoteHandlerProps> = ({ member, onUpdate })
             ) : (
                 <button
                     onClick={handleStartRecording}
-                    className="w-full flex items-center justify-center space-x-2 text-blue-400 border-2 border-dashed border-gray-600 hover:border-blue-400 hover:text-white hover:bg-blue-500/10 rounded-lg p-2 transition"
+                    className="w-full flex items-center justify-center space-x-2 text-blue-600 dark:text-blue-400 border-2 border-dashed border-gray-400 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-700 dark:hover:text-white hover:bg-blue-500/10 rounded-lg p-2 transition"
                 >
                     <MicIcon className="w-5 h-5" />
                     <span>Record Voice Note</span>

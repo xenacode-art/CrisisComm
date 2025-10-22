@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FamilyCircle } from '../types';
 import { createFamilyCircle } from '../services/mockApiService';
@@ -55,17 +54,17 @@ const FamilyCircleSetup: React.FC<FamilyCircleSetupProps> = ({ onCircleCreated }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-crisis-dark">
-      <div className="w-full max-w-2xl mx-auto bg-crisis-light shadow-2xl rounded-2xl p-8 space-y-8">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-crisis-dark">
+      <div className="w-full max-w-2xl mx-auto bg-white dark:bg-crisis-light shadow-2xl rounded-2xl p-8 space-y-8">
         <div className="text-center">
-            <UsersIcon className="w-16 h-16 mx-auto text-blue-400 mb-4" />
-          <h1 className="text-4xl font-bold text-gray-100">Create Your Family Circle</h1>
-          <p className="text-gray-400 mt-2">Establish a communication hub for your loved ones in case of an emergency.</p>
+            <UsersIcon className="w-16 h-16 mx-auto text-blue-500 dark:text-blue-400 mb-4" />
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">Create Your Family Circle</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Establish a communication hub for your loved ones in case of an emergency.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="circleName" className="block text-sm font-medium text-gray-300 mb-2">
+            <label htmlFor="circleName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Family/Circle Name
             </label>
             <input
@@ -73,22 +72,22 @@ const FamilyCircleSetup: React.FC<FamilyCircleSetupProps> = ({ onCircleCreated }
               type="text"
               value={circleName}
               onChange={(e) => setCircleName(e.target.value)}
-              className="w-full bg-crisis-accent border border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+              className="w-full bg-gray-50 dark:bg-crisis-accent border border-gray-300 dark:border-gray-600 rounded-md p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               placeholder="e.g., The Johnson Family"
               required
             />
           </div>
 
           <div className="space-y-4">
-             <h3 className="text-lg font-medium text-gray-300">Members</h3>
+             <h3 className="text-lg font-medium text-gray-800 dark:text-gray-300">Members</h3>
             {members.map((member, index) => (
-              <div key={index} className="flex items-center space-x-3 bg-crisis-accent/50 p-3 rounded-lg">
+              <div key={index} className="flex items-center space-x-3 bg-gray-100 dark:bg-crisis-accent/50 p-3 rounded-lg">
                 <input
                   type="text"
                   placeholder="Name"
                   value={member.name}
                   onChange={(e) => handleMemberChange(index, 'name', e.target.value)}
-                  className="flex-1 bg-crisis-dark border border-gray-600 rounded-md p-2 text-white focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 bg-white dark:bg-crisis-dark border border-gray-300 dark:border-gray-600 rounded-md p-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
                   required
                 />
                 <input
@@ -96,13 +95,13 @@ const FamilyCircleSetup: React.FC<FamilyCircleSetupProps> = ({ onCircleCreated }
                   placeholder="Phone (e.g., +1...)"
                   value={member.phone}
                   onChange={(e) => handleMemberChange(index, 'phone', e.target.value)}
-                  className="flex-1 bg-crisis-dark border border-gray-600 rounded-md p-2 text-white focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 bg-white dark:bg-crisis-dark border border-gray-300 dark:border-gray-600 rounded-md p-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => handleRemoveMember(index)}
-                  className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
+                  className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
                   aria-label="Remove member"
                 >
                   <TrashIcon className="w-5 h-5" />
@@ -112,14 +111,14 @@ const FamilyCircleSetup: React.FC<FamilyCircleSetupProps> = ({ onCircleCreated }
             <button
               type="button"
               onClick={handleAddMember}
-              className="w-full flex items-center justify-center space-x-2 text-blue-400 border-2 border-dashed border-gray-600 hover:border-blue-400 hover:text-white hover:bg-blue-500/10 rounded-lg p-3 transition"
+              className="w-full flex items-center justify-center space-x-2 text-blue-600 dark:text-blue-400 border-2 border-dashed border-gray-400 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-700 dark:hover:text-white hover:bg-blue-500/10 rounded-lg p-3 transition"
             >
               <PlusIcon className="w-5 h-5" />
               <span>Add Member</span>
             </button>
           </div>
           
-          {error && <p className="text-red-400 text-center">{error}</p>}
+          {error && <p className="text-red-500 dark:text-red-400 text-center">{error}</p>}
 
           <button
             type="submit"

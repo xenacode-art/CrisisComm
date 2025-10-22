@@ -9,6 +9,7 @@ export enum StatusType {
 export interface Coordinates {
   lat: number;
   lng: number;
+  accuracy?: number; // Accuracy in meters
 }
 
 export interface Member {
@@ -16,6 +17,7 @@ export interface Member {
   name: string;
   phone: string;
   status: StatusType;
+  isLocationShared: boolean;
   message?: string;
   voiceNoteUrl?: string;
   location?: Coordinates;
