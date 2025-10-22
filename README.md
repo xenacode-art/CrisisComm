@@ -228,18 +228,20 @@ Users (Web + SMS) ──▶ Cloud Run ──┬──▶ Gemini AI (Coordination
 ## 📸 Screenshots
 
 ### Family Status Dashboard
-*Real-time overview of all family members' safety status during a crisis*
+<img width="1893" height="990" alt="Screenshot 2025-10-22 151856" src="https://github.com/user-attachments/assets/f275a47b-682b-4c77-9483-6fee9366b90f" />
+
 
 ### AI Crisis Coordinator
-*Gemini AI analyzes the situation and provides intelligent recommendations*
+<img width="1901" height="968" alt="Screenshot 2025-10-22 151912" src="https://github.com/user-attachments/assets/b57d2667-af2f-424a-9d66-406f478c0222" />
+
 
 ### Location Tracking
-*Interactive map showing family member locations and suggested meetup points*
+<img width="1870" height="977" alt="Screenshot 2025-10-22 151925" src="https://github.com/user-attachments/assets/de90e95d-c6c3-4acd-825c-bcc639550209" />
+
 
 ### Timeline View
-*Complete history of check-ins, status updates, and coordination events*
+<img width="1880" height="967" alt="Screenshot 2025-10-22 152005" src="https://github.com/user-attachments/assets/0f5269ea-018b-4e10-9b44-16bcb3a78755" />
 
----
 
 ## 🎨 Key Innovations
 
