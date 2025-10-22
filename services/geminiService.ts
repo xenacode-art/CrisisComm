@@ -1,6 +1,7 @@
 
+
 import { GoogleGenAI, Type } from '@google/genai';
-import { FamilyCircle, CrisisData, Coordinates, MultiAgentAIResponse } from '../types';
+import { FamilyCircle, CrisisData, Coordinates, MultiAgentAIResponse, StatusType } from '../types';
 
 // Per guidelines, use GoogleGenAI
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -141,6 +142,22 @@ const multiAgentResponseSchema = {
     ],
 };
 
+const smsParsingSchema = {
+    type: Type.OBJECT,
+    properties: {
+        status: { 
+            type: Type.STRING, 
+            description: "The inferred status of the person.",
+            enum: [StatusType.SAFE, StatusType.HELP, StatusType.INJURED] 
+        },
+        summary: { 
+            type: Type.STRING, 
+            description: "A concise summary of the person's situation based on their message." 
+        },
+    },
+    required: ['status', 'summary'],
+};
+
 export const generateMultiAgentResponse = async (
     familyCircle: FamilyCircle,
     crisisData: CrisisData,
@@ -185,5 +202,51 @@ export const generateMultiAgentResponse = async (
     } catch (error) {
         console.error("Error generating multi-agent AI response:", error);
         throw new Error("The AI crisis team could not generate a plan. The situation may be complex or there was a network issue. Please try again in a moment.");
+    }
+};
+
+export const parseSmsMessage = async (
+    message: string
+): Promise<{ status: StatusType; summary: string }> => {
+    const prompt = `
+    You are an SMS parsing service for an emergency response app. Your job is to analyze an incoming SMS message and determine the person's status and a summary of their situation.
+
+    **Instructions:**
+    1. Read the message carefully to understand the sender's condition.
+    2. Determine the status. It MUST be one of the following exact values: 'SAFE', 'HELP', or 'INJURED'.
+        - 'SAFE': The person is okay, not in immediate danger.
+        - 'HELP': The person needs assistance but is not explicitly stating an injury (e.g., stuck, needs rescue).
+        - 'INJURED': The person explicitly mentions being hurt, wounded, or having a medical emergency.
+    3. Create a brief, one-sentence summary of their message.
+
+    **SMS Message to Analyze:**
+    "${message}"
+
+    The output MUST be a single JSON object that strictly adheres to the provided schema. Do not include any explanatory text, markdown formatting, or any content outside the JSON structure.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: smsParsingSchema,
+            },
+        });
+
+        const jsonText = response.text.trim();
+        const parsed = JSON.parse(jsonText);
+        
+        // Validate that status is a valid StatusType
+        if (!Object.values(StatusType).includes(parsed.status)) {
+            throw new Error(`Invalid status received from AI: ${parsed.status}`);
+        }
+        
+        return parsed;
+
+    } catch (error) {
+        console.error("Error parsing SMS message with AI:", error);
+        throw new Error("The AI could not understand the message. Please try a clearer message or update the status manually.");
     }
 };

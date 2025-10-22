@@ -11,15 +11,16 @@ import Spinner from './components/common/Spinner';
 import MemberStatusCard from './components/MemberStatusCard';
 import FamilyMapView from './components/FamilyMapView';
 import AiPlanView from './components/AiPlanView';
-import { AiIcon, SunIcon, MoonIcon, AlertTriangleIcon, UsersIcon, MapIcon, RssIcon } from './components/icons';
+import { AiIcon, SunIcon, MoonIcon, AlertTriangleIcon, UsersIcon, MapIcon, RssIcon, MessageCircleIcon } from './components/icons';
 import PreparednessDashboard from './components/PreparednessDashboard';
 import LiveCrisisDataView from './components/LiveCrisisDataView';
 import OfflineIndicator from './components/OfflineIndicator';
+import SmsCheckinSimulator from './components/SmsCheckinSimulator';
 
 const DEFAULT_LOCATION: Coordinates = { lat: 37.7749, lng: -122.4194 }; // San Francisco City Hall
 
 type View = 'crisis' | 'preparedness';
-type CrisisTab = 'status' | 'map' | 'ai' | 'data';
+type CrisisTab = 'status' | 'sms' | 'map' | 'ai' | 'data';
 
 const useTheme = (): [string, () => void] => {
     const [theme, setTheme] = usePersistentState<string>('theme', 'dark');
@@ -264,6 +265,8 @@ const CrisisView: React.FC<{
                         ))}
                     </div>
                 );
+            case 'sms':
+                return <SmsCheckinSimulator members={familyCircle.members} onMemberUpdate={handleMemberUpdate} />;
             case 'map':
                 return (
                     <div className="h-[55vh] sm:h-[65vh] bg-white dark:bg-crisis-light rounded-lg overflow-hidden shadow-lg">
@@ -285,6 +288,7 @@ const CrisisView: React.FC<{
                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                      <nav className="w-full md:w-auto flex items-center gap-2 p-2 bg-gray-200/50 dark:bg-crisis-dark/50 rounded-xl">
                         <TabButton icon={<UsersIcon className="w-5 h-5"/>} label="Status" isActive={activeTab === 'status'} onClick={() => setActiveTab('status')} />
+                        <TabButton icon={<MessageCircleIcon className="w-5 h-5"/>} label="SMS" isActive={activeTab === 'sms'} onClick={() => setActiveTab('sms')} />
                         <TabButton icon={<MapIcon className="w-5 h-5"/>} label="Map" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
                         <TabButton icon={<AiIcon className="w-5 h-5"/>} label="AI Plan" isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')} />
                         <TabButton icon={<RssIcon className="w-5 h-5"/>} label="Data Feed" isActive={activeTab === 'data'} onClick={() => setActiveTab('data')} />

@@ -175,3 +175,23 @@ export const updateMemberLocationSharing = (memberId: string, isShared: boolean)
         }, 300);
     });
 };
+
+export const updateMemberStatus = (memberId: string, status: StatusType, message: string): Promise<Member> => {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if (mockFamilyCircle) {
+                const member = mockFamilyCircle.members.find(m => m.id === memberId);
+                if (member) {
+                    member.status = status;
+                    member.message = message;
+                    member.last_update = new Date().toISOString();
+                    resolve(member);
+                } else {
+                    reject(new Error("Member not found"));
+                }
+            } else {
+                reject(new Error("Family circle not found"));
+            }
+        }, 300);
+    });
+};
