@@ -11,7 +11,7 @@ import Spinner from './components/common/Spinner';
 import MemberStatusCard from './components/MemberStatusCard';
 import FamilyMapView from './components/FamilyMapView';
 import AiPlanView from './components/AiPlanView';
-import { AiIcon, SunIcon, MoonIcon, AlertTriangleIcon, UsersIcon, MapIcon, RssIcon, MessageCircleIcon } from './components/icons';
+import { AiIcon, SunIcon, MoonIcon, AlertTriangleIcon, UsersIcon, MapIcon, RssIcon, MessageCircleIcon, LogOutIcon } from './components/icons';
 import PreparednessDashboard from './components/PreparednessDashboard';
 import LiveCrisisDataView from './components/LiveCrisisDataView';
 import OfflineIndicator from './components/OfflineIndicator';
@@ -64,6 +64,11 @@ const App: React.FC = () => {
 
     setNotification(message);
     setFamilyCircle(circle);
+  };
+
+  const handleExit = () => {
+      // Clear persistent state and trigger re-render to setup screen
+      setFamilyCircle(null);
   };
 
   // Effect for initial family circle loading
@@ -130,6 +135,7 @@ const App: React.FC = () => {
             onFamilyCircleUpdate={setFamilyCircle}
             userLocation={userLocation!}
             locationError={locationError}
+            onExit={handleExit}
         />
       ) : (
         <FamilyCircleSetup onCircleCreated={handleCircleCreated} />
@@ -142,8 +148,9 @@ const DashboardContainer: React.FC<{
     familyCircle: FamilyCircle,
     onFamilyCircleUpdate: Dispatch<SetStateAction<FamilyCircle | null>>,
     userLocation: Coordinates,
-    locationError: string | null 
-}> = ({ familyCircle, onFamilyCircleUpdate, userLocation, locationError }) => {
+    locationError: string | null,
+    onExit: () => void;
+}> = ({ familyCircle, onFamilyCircleUpdate, userLocation, locationError, onExit }) => {
     const [view, setView] = useState<View>('crisis');
     const [theme, toggleTheme] = useTheme();
 
@@ -166,6 +173,14 @@ const DashboardContainer: React.FC<{
                         aria-label="Toggle theme"
                     >
                         {theme === 'light' ? <MoonIcon className="w-5 h-5" /> : <SunIcon className="w-5 h-5" />}
+                    </button>
+                    <button
+                        onClick={onExit}
+                        className="p-2 rounded-lg bg-gray-200 dark:bg-crisis-accent text-gray-700 dark:text-gray-300 hover:bg-red-500/10 hover:text-red-500 dark:hover:bg-red-500/20 transition"
+                        aria-label="Exit and Reset Circle"
+                        title="Exit and Reset Circle"
+                    >
+                        <LogOutIcon className="w-5 h-5" />
                     </button>
                 </div>
             </header>
