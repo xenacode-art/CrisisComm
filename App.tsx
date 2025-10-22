@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import FamilyCircleSetup from './components/FamilyCircleSetup';
-import { FamilyCircle, CrisisData, MultiAgentAIResponse, Coordinates, Member } from './types';
+import { FamilyCircle, CrisisData, MultiAgentAIResponse, Coordinates, Member, CrisisEvent } from './types';
 import { getFamilyCircle, startCrisisSimulation } from './services/mockApiService';
 import { fetchEarthquakeData } from './services/usgsService';
 // import { fetchWeatherAlerts } from './services/noaaService';
@@ -10,12 +10,14 @@ import Spinner from './components/common/Spinner';
 import MemberStatusCard from './components/MemberStatusCard';
 import FamilyMapView from './components/FamilyMapView';
 import AiPlanView from './components/AiPlanView';
-import { AiIcon, SunIcon, MoonIcon, AlertTriangleIcon } from './components/icons';
+import { AiIcon, SunIcon, MoonIcon, AlertTriangleIcon, UsersIcon, MapIcon, RssIcon } from './components/icons';
 import PreparednessDashboard from './components/PreparednessDashboard';
+import LiveCrisisDataView from './components/LiveCrisisDataView';
 
 const DEFAULT_LOCATION: Coordinates = { lat: 37.7749, lng: -122.4194 }; // San Francisco City Hall
 
 type View = 'crisis' | 'preparedness';
+type CrisisTab = 'status' | 'map' | 'ai' | 'data';
 
 const useTheme = (): [string, () => void] => {
     const [theme, setTheme] = useState(() => {
@@ -53,7 +55,6 @@ const App: React.FC = () => {
   
   useTheme(); // Initialize theme hook at the root
 
-  // FIX: Define handleCircleCreated to allow FamilyCircleSetup to update the app state.
   const handleCircleCreated = (circle: FamilyCircle) => {
     setFamilyCircle(circle);
   };
@@ -155,12 +156,30 @@ const DashboardContainer: React.FC<{
     )
 }
 
+const TabButton: React.FC<{ icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }> = ({ icon, label, isActive, onClick }) => {
+    return (
+        <button
+            onClick={onClick}
+            className={`flex-1 flex items-center justify-center gap-3 px-4 py-3 text-sm font-bold rounded-lg transition-all duration-200 ${
+                isActive
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-crisis-accent text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-crisis-light'
+            }`}
+        >
+            {icon}
+            <span>{label}</span>
+        </button>
+    );
+};
+
+
 const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinates }> = ({ familyCircle: initialFamilyCircle, userLocation }) => {
     const [familyCircle, setFamilyCircle] = useState<FamilyCircle>(initialFamilyCircle);
     const [crisisData, setCrisisData] = useState<CrisisData>({ live_crisis_events: [] });
     const [aiResponse, setAiResponse] = useState<MultiAgentAIResponse | null>(null);
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [isCrisisDataLoading, setIsCrisisDataLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<CrisisTab>('status');
     
     // Simulate live member status updates
     useEffect(() => {
@@ -177,23 +196,25 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
         };
     }, [initialFamilyCircle]);
 
+    const fetchCrisisData = useCallback(async () => {
+        setIsCrisisDataLoading(true);
+        const earthquakeEvents = await fetchEarthquakeData(userLocation);
+        // const weatherEvents = await fetchWeatherAlerts(userLocation);
+        setCrisisData({ live_crisis_events: [...earthquakeEvents] });
+        setIsCrisisDataLoading(false);
+    }, [userLocation]);
+
     // Fetch live crisis data
     useEffect(() => {
-        const fetchCrisisData = async () => {
-            setIsCrisisDataLoading(true);
-            const earthquakeEvents = await fetchEarthquakeData(userLocation);
-            // const weatherEvents = await fetchWeatherAlerts(userLocation);
-            setCrisisData({ live_crisis_events: [...earthquakeEvents] });
-            setIsCrisisDataLoading(false);
-        };
         fetchCrisisData();
-    }, [userLocation]);
+    }, [fetchCrisisData]);
 
     const handleGeneratePlan = useCallback(async () => {
         setIsAiLoading(true);
         try {
             const response = await generateMultiAgentResponse(familyCircle, crisisData, userLocation);
             setAiResponse(response);
+            setActiveTab('ai'); // Switch to AI tab after generation
         } catch (error) {
             console.error(error);
             alert((error as Error).message);
@@ -210,40 +231,56 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
     };
 
     const meetupPoints = useMemo(() => aiResponse?.logistics_plan.meetup_points || [], [aiResponse]);
+    
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'status':
+                return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {familyCircle.members.map(member => (
+                            <MemberStatusCard key={member.id} member={member} onMemberUpdate={handleMemberUpdate} />
+                        ))}
+                    </div>
+                );
+            case 'map':
+                return (
+                    <div className="h-[65vh] bg-white dark:bg-crisis-light rounded-lg overflow-hidden shadow-lg">
+                        {isCrisisDataLoading ? <Spinner /> : <FamilyMapView members={familyCircle.members} crisisEvents={crisisData.live_crisis_events} meetupPoints={meetupPoints} />}
+                    </div>
+                );
+            case 'ai':
+                 return <AiPlanView response={aiResponse} isLoading={isAiLoading} onRegenerate={handleGeneratePlan} />;
+            case 'data':
+                return <LiveCrisisDataView crisisEvents={crisisData.live_crisis_events} userLocation={userLocation} isLoading={isCrisisDataLoading} onRefresh={fetchCrisisData} />;
+            default:
+                return null;
+        }
+    }
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-end">
-                 <button 
-                    onClick={handleGeneratePlan}
-                    disabled={isAiLoading}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition"
-                >
-                    <AiIcon className="w-5 h-5" />
-                    {isAiLoading ? 'Analyzing...' : (aiResponse ? 'Regenerate AI Plan' : 'Generate AI Plan')}
-                 </button>
+            <div className="bg-white dark:bg-crisis-light p-4 rounded-lg shadow-md space-y-4">
+                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                     <nav className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-2 p-2 bg-gray-200/50 dark:bg-crisis-dark/50 rounded-xl">
+                        <TabButton icon={<UsersIcon className="w-5 h-5"/>} label="Status" isActive={activeTab === 'status'} onClick={() => setActiveTab('status')} />
+                        <TabButton icon={<MapIcon className="w-5 h-5"/>} label="Map" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
+                        <TabButton icon={<AiIcon className="w-5 h-5"/>} label="AI Plan" isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')} />
+                        <TabButton icon={<RssIcon className="w-5 h-5"/>} label="Data Feed" isActive={activeTab === 'data'} onClick={() => setActiveTab('data')} />
+                     </nav>
+                     <button 
+                        onClick={handleGeneratePlan}
+                        disabled={isAiLoading}
+                        className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg transition"
+                    >
+                        <AiIcon className="w-5 h-5" />
+                        {isAiLoading ? 'Analyzing...' : (aiResponse ? 'Regenerate AI Plan' : 'Generate AI Plan')}
+                     </button>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <section className="lg:col-span-1 space-y-4">
-                     <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 border-b-2 border-gray-200 dark:border-crisis-accent pb-2">Family Status</h2>
-                    {familyCircle.members.map(member => (
-                        <MemberStatusCard key={member.id} member={member} onMemberUpdate={handleMemberUpdate} />
-                    ))}
-                </section>
-                
-                <section className="lg:col-span-2 space-y-4">
-                     <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 border-b-2 border-gray-200 dark:border-crisis-accent pb-2">Live Situation Map</h2>
-                     <div className="h-[500px] bg-white dark:bg-crisis-light rounded-lg overflow-hidden shadow-lg">
-                        {isCrisisDataLoading ? <Spinner /> : <FamilyMapView members={familyCircle.members} crisisEvents={crisisData.live_crisis_events} meetupPoints={meetupPoints} />}
-                     </div>
-                </section>
+            <div className="mt-6">
+                {renderContent()}
             </div>
-            
-             <section className="space-y-4">
-                <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 border-b-2 border-gray-200 dark:border-crisis-accent pb-2">AI-Generated Action Plan</h2>
-                <AiPlanView response={aiResponse} isLoading={isAiLoading} onRegenerate={handleGeneratePlan} />
-             </section>
         </div>
     );
 };
