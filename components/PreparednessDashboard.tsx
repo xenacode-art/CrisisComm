@@ -46,9 +46,9 @@ const PreparednessDashboard: React.FC = () => {
 
     return (
         <div className="bg-white dark:bg-crisis-light p-6 rounded-lg shadow-lg space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{plan.name}</h2>
-                <div className="text-right">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{plan.name}</h2>
+                <div className="text-left sm:text-right w-full sm:w-auto">
                     <p className="font-bold text-2xl text-blue-600 dark:text-blue-400">{preparednessScore}% Complete</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{completedItems} of {totalItems} tasks done</p>
                 </div>

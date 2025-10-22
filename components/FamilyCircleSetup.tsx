@@ -12,8 +12,9 @@ const FamilyCircleSetup: React.FC<FamilyCircleSetupProps> = ({ onCircleCreated }
   const [circleName, setCircleName] = useState('The Johnsons');
   const [members, setMembers] = useState<{ name: string; phone: string }[]>([
     { name: 'Mike Johnson', phone: '+14155551235' },
-    { name: 'Emma Johnson', phone: '+14155551236' },
+    { name: 'Emma Johnson', phone: '+15555551236' },
     { name: 'Grandma May', phone: '+14155551237' },
+    { name: 'You', phone: '+14155551234' },
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,13 +82,13 @@ const FamilyCircleSetup: React.FC<FamilyCircleSetupProps> = ({ onCircleCreated }
           <div className="space-y-4">
              <h3 className="text-lg font-medium text-gray-800 dark:text-gray-300">Members</h3>
             {members.map((member, index) => (
-              <div key={index} className="flex items-center space-x-3 bg-gray-100 dark:bg-crisis-accent/50 p-3 rounded-lg">
+              <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-gray-100 dark:bg-crisis-accent/50 p-3 rounded-lg">
                 <input
                   type="text"
                   placeholder="Name"
                   value={member.name}
                   onChange={(e) => handleMemberChange(index, 'name', e.target.value)}
-                  className="flex-1 bg-white dark:bg-crisis-dark border border-gray-300 dark:border-gray-600 rounded-md p-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
+                  className="w-full sm:flex-1 bg-white dark:bg-crisis-dark border border-gray-300 dark:border-gray-600 rounded-md p-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
                   required
                 />
                 <input
@@ -95,13 +96,13 @@ const FamilyCircleSetup: React.FC<FamilyCircleSetupProps> = ({ onCircleCreated }
                   placeholder="Phone (e.g., +1...)"
                   value={member.phone}
                   onChange={(e) => handleMemberChange(index, 'phone', e.target.value)}
-                  className="flex-1 bg-white dark:bg-crisis-dark border border-gray-300 dark:border-gray-600 rounded-md p-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
+                  className="w-full sm:flex-1 bg-white dark:bg-crisis-dark border border-gray-300 dark:border-gray-600 rounded-md p-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => handleRemoveMember(index)}
-                  className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
+                  className="p-2 self-center sm:self-auto text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-500/10"
                   aria-label="Remove member"
                 >
                   <TrashIcon className="w-5 h-5" />

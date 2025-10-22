@@ -11,9 +11,9 @@ interface LiveCrisisDataViewProps {
 }
 
 const DataRow: React.FC<{ label: string; value: React.ReactNode; isWarning?: boolean }> = ({ label, value, isWarning }) => (
-    <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-600/50">
-        <span className="text-gray-400">{label}:</span>
-        <span className={`font-semibold text-right ${isWarning ? 'text-yellow-400' : 'text-gray-200'}`}>{value}</span>
+    <div className="flex flex-col text-left sm:flex-row sm:justify-between sm:items-center py-2 border-b border-dashed border-gray-600/50">
+        <span className="text-gray-400 text-sm sm:text-base">{label}:</span>
+        <span className={`font-semibold sm:text-right ${isWarning ? 'text-yellow-400' : 'text-gray-200'}`}>{value}</span>
     </div>
 );
 
@@ -52,13 +52,13 @@ const LiveCrisisDataView: React.FC<LiveCrisisDataViewProps> = ({ crisisEvents, i
     };
 
     return (
-        <div className="bg-crisis-dark text-gray-200 font-mono p-6 rounded-lg border-2 border-crisis-accent shadow-2xl">
-            <header className="flex justify-between items-center pb-3 border-b-2 border-crisis-accent">
-                <h2 className="text-xl font-bold text-white">📡 Live Crisis Data Feed</h2>
+        <div className="bg-crisis-dark text-gray-200 font-mono p-4 sm:p-6 rounded-lg border-2 border-crisis-accent shadow-2xl">
+            <header className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b-2 border-crisis-accent">
+                <h2 className="text-lg sm:text-xl font-bold text-white text-center sm:text-left">📡 Live Crisis Data Feed</h2>
                 <button
                     onClick={handleRefresh}
                     disabled={isLoading}
-                    className="bg-blue-600/50 hover:bg-blue-500/50 text-white text-xs font-bold py-2 px-3 rounded-md transition disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto bg-blue-600/50 hover:bg-blue-500/50 text-white text-xs font-bold py-2 px-3 rounded-md transition disabled:bg-gray-600 disabled:cursor-not-allowed"
                 >
                     {isLoading ? 'Refreshing...' : 'Refresh Data'}
                 </button>

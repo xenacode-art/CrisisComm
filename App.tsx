@@ -126,7 +126,7 @@ const DashboardContainer: React.FC<{
     return (
         <main className="p-4 lg:p-6 space-y-6">
             <header className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Crisis Command Center: <span className="text-blue-600 dark:text-blue-400">{initialFamilyCircle.name}</span></h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 text-center sm:text-left">Crisis Command Center: <span className="text-blue-600 dark:text-blue-400">{initialFamilyCircle.name}</span></h1>
                 <div className="flex items-center space-x-2">
                     <nav className="flex space-x-2 p-1 bg-gray-200 dark:bg-crisis-accent rounded-lg">
                         <button onClick={() => setView('crisis')} className={`px-4 py-2 text-sm font-semibold rounded-md transition ${view === 'crisis' ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-crisis-light'}`}>
@@ -167,7 +167,7 @@ const TabButton: React.FC<{ icon: React.ReactNode, label: string, isActive: bool
             }`}
         >
             {icon}
-            <span>{label}</span>
+            <span className="hidden sm:inline">{label}</span>
         </button>
     );
 };
@@ -244,7 +244,7 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
                 );
             case 'map':
                 return (
-                    <div className="h-[65vh] bg-white dark:bg-crisis-light rounded-lg overflow-hidden shadow-lg">
+                    <div className="h-[55vh] sm:h-[65vh] bg-white dark:bg-crisis-light rounded-lg overflow-hidden shadow-lg">
                         {isCrisisDataLoading ? <Spinner /> : <FamilyMapView members={familyCircle.members} crisisEvents={crisisData.live_crisis_events} meetupPoints={meetupPoints} />}
                     </div>
                 );
@@ -261,7 +261,7 @@ const CrisisView: React.FC<{ familyCircle: FamilyCircle, userLocation: Coordinat
         <div className="space-y-6">
             <div className="bg-white dark:bg-crisis-light p-4 rounded-lg shadow-md space-y-4">
                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                     <nav className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-2 p-2 bg-gray-200/50 dark:bg-crisis-dark/50 rounded-xl">
+                     <nav className="w-full md:w-auto flex items-center gap-2 p-2 bg-gray-200/50 dark:bg-crisis-dark/50 rounded-xl">
                         <TabButton icon={<UsersIcon className="w-5 h-5"/>} label="Status" isActive={activeTab === 'status'} onClick={() => setActiveTab('status')} />
                         <TabButton icon={<MapIcon className="w-5 h-5"/>} label="Map" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
                         <TabButton icon={<AiIcon className="w-5 h-5"/>} label="AI Plan" isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')} />
