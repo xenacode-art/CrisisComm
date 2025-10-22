@@ -1,4 +1,3 @@
-
 import { FamilyCircle, Member, StatusType, VoiceNote } from '../types';
 
 let mockFamilyCircle: FamilyCircle | null = null;
@@ -56,13 +55,13 @@ export const createFamilyCircle = (
                 name,
                 members: newMembers,
             };
-            resolve(mockFamilyCircle);
+            resolve(JSON.parse(JSON.stringify(mockFamilyCircle)));
         }, 1000);
     });
 };
 
 // Simulate live updates for member statuses during a crisis.
-export const startCrisisSimulation = (circle: FamilyCircle): (() => void) => {
+export const startCrisisSimulation = (onUpdate: (circle: FamilyCircle) => void): (() => void) => {
     const intervalId = setInterval(() => {
         if (!mockFamilyCircle) return;
 
@@ -110,6 +109,8 @@ export const startCrisisSimulation = (circle: FamilyCircle): (() => void) => {
                 ...mockFamilyCircle,
                 members: newMembers,
             };
+            // Push the update to the listener
+            onUpdate(JSON.parse(JSON.stringify(mockFamilyCircle)));
         }
 
     }, 5000); // Update every 5 seconds
@@ -150,7 +151,7 @@ export const addMemberVoiceNote = (memberId: string, voiceNoteUrl: string): Prom
                         ...mockFamilyCircle,
                         members: newMembers,
                     };
-                    resolve(updatedMember);
+                    resolve(JSON.parse(JSON.stringify(updatedMember)));
                 } else {
                     reject(new Error("Member not found"));
                 }
@@ -187,7 +188,7 @@ export const deleteMemberVoiceNote = (memberId: string, voiceNoteId: string): Pr
                         ...mockFamilyCircle,
                         members: newMembers,
                     };
-                    resolve(updatedMember);
+                    resolve(JSON.parse(JSON.stringify(updatedMember)));
                 } else {
                     reject(new Error("Member or voice note not found"));
                 }
@@ -221,7 +222,7 @@ export const updateMemberLocationSharing = (memberId: string, isShared: boolean)
                         ...mockFamilyCircle,
                         members: newMembers,
                     };
-                    resolve(updatedMember);
+                    resolve(JSON.parse(JSON.stringify(updatedMember)));
                 } else {
                     reject(new Error("Member not found"));
                 }
@@ -255,7 +256,7 @@ export const updateMemberStatus = (memberId: string, status: StatusType, message
                         ...mockFamilyCircle,
                         members: newMembers,
                     };
-                    resolve(updatedMember);
+                    resolve(JSON.parse(JSON.stringify(updatedMember)));
                 } else {
                     reject(new Error("Member not found"));
                 }

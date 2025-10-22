@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction, useRef } from 'react';
 import FamilyCircleSetup from './components/FamilyCircleSetup';
 import { FamilyCircle, CrisisData, MultiAgentAIResponse, Coordinates, Member, CrisisEvent } from './types';
 import { getFamilyCircle, startCrisisSimulation } from './services/mockApiService';
@@ -49,8 +49,10 @@ const App: React.FC = () => {
   const [isLocationLoading, setIsLocationLoading] = useState(true);
   const [notification, setNotification] = useState<string | null>(null);
   const isOnline = useOnlineStatus();
-  
-  useTheme(); // Initialize theme hook at the root
+  const [theme, toggleTheme] = useTheme();
+
+  // Ref to hold the simulation cleanup function to prevent race conditions on exit.
+  const stopSimulationRef = useRef<(() => void) | null>(null);
 
   const handleCircleCreated = (circle: FamilyCircle) => {
     const invitedMembers = circle.members
@@ -67,7 +69,12 @@ const App: React.FC = () => {
   };
 
   const handleExit = () => {
-      // Clear persistent state and trigger re-render to setup screen
+      // 1. Manually and synchronously stop the simulation to prevent race conditions.
+      if (stopSimulationRef.current) {
+          stopSimulationRef.current();
+          stopSimulationRef.current = null;
+      }
+      // 2. Clear the family circle to return to the setup screen.
       setFamilyCircle(null);
   };
 
@@ -115,18 +122,25 @@ const App: React.FC = () => {
     }
   }, [isOnline]);
 
-  // Start/Stop the background data simulation when the dashboard is active/inactive.
+  // Subscribe to the background data simulation when the dashboard is active.
+  const hasCircle = !!familyCircle;
   useEffect(() => {
-    let stopSimulation: (() => void) | undefined;
-    if (familyCircle && isOnline) {
-      // The simulation service operates on a shared mock object, so we pass
-      // the current circle to ensure it's initialized correctly.
-      stopSimulation = startCrisisSimulation(familyCircle);
+    if (hasCircle && isOnline) {
+      // The service will "push" updates to us via this callback.
+      // Store the cleanup function in the ref.
+      stopSimulationRef.current = startCrisisSimulation((updatedCircle) => {
+        setFamilyCircle(updatedCircle);
+      });
     }
+    // The cleanup function will run when the dependencies change,
+    // or when the component unmounts.
     return () => {
-      stopSimulation?.();
+      if (stopSimulationRef.current) {
+          stopSimulationRef.current();
+          stopSimulationRef.current = null;
+      }
     };
-  }, [familyCircle, isOnline]);
+  }, [hasCircle, isOnline, setFamilyCircle]);
 
   if (isLoading || isLocationLoading) {
     return (
@@ -147,6 +161,8 @@ const App: React.FC = () => {
             userLocation={userLocation!}
             locationError={locationError}
             onExit={handleExit}
+            theme={theme}
+            toggleTheme={toggleTheme}
         />
       ) : (
         <FamilyCircleSetup onCircleCreated={handleCircleCreated} />
@@ -161,9 +177,10 @@ const DashboardContainer: React.FC<{
     userLocation: Coordinates,
     locationError: string | null,
     onExit: () => void;
-}> = ({ familyCircle, onFamilyCircleUpdate, userLocation, locationError, onExit }) => {
+    theme: string;
+    toggleTheme: () => void;
+}> = ({ familyCircle, onFamilyCircleUpdate, userLocation, locationError, onExit, theme, toggleTheme }) => {
     const [view, setView] = useState<View>('crisis');
-    const [theme, toggleTheme] = useTheme();
 
     return (
         <main className="p-4 lg:p-6 space-y-6">
@@ -234,22 +251,6 @@ const CrisisView: React.FC<{
     const [isCrisisDataLoading, setIsCrisisDataLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<CrisisTab>('status');
     const isOnline = useOnlineStatus();
-    
-    // Poll for UI updates from the simulation, which now runs independently.
-    useEffect(() => {
-        if (!isOnline) return;
-
-        const interval = setInterval(() => {
-            getFamilyCircle().then(circle => {
-                if (circle) onFamilyCircleUpdate(circle);
-            });
-        }, 2000); // Poll every 2 seconds
-
-        return () => {
-            clearInterval(interval);
-        };
-    }, [isOnline, onFamilyCircleUpdate]);
-
 
     const fetchCrisisData = useCallback(async () => {
         if (!isOnline) {

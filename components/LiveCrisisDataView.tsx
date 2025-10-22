@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CrisisEvent, Coordinates } from '../types';
 import Spinner from './common/Spinner';
 import { AlertTriangleIcon } from './icons';
@@ -36,13 +36,6 @@ const LiveCrisisDataView: React.FC<LiveCrisisDataViewProps> = ({ crisisEvents, i
         onRefresh();
         setLastUpdated(new Date());
     };
-
-    useEffect(() => {
-      // If we come back online and there's no fresh data, refresh
-      if (isOnline && crisisEvents.length === 0) {
-        onRefresh();
-      }
-    }, [isOnline, crisisEvents, onRefresh]);
 
     const earthquake = crisisEvents.find(e => e.type === 'earthquake');
 
