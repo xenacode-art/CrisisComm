@@ -66,6 +66,7 @@ const App: React.FC = () => {
     setFamilyCircle(circle);
   };
 
+  // Effect for initial family circle loading
   useEffect(() => {
     // If we have a stored family circle, we can show the dashboard immediately.
     if (familyCircle) {
@@ -77,8 +78,11 @@ const App: React.FC = () => {
             setIsLoading(false);
         });
     }
+  }, [familyCircle, setFamilyCircle]);
 
-    // Fetch user location
+  // Effect for fetching user location based on online status
+  useEffect(() => {
+    setIsLocationLoading(true);
     if (isOnline && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -106,7 +110,7 @@ const App: React.FC = () => {
         setUserLocation(DEFAULT_LOCATION);
         setIsLocationLoading(false);
     }
-  }, [isOnline]); // Refetch location if we come back online
+  }, [isOnline]);
 
   if (isLoading || isLocationLoading) {
     return (
