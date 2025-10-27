@@ -439,7 +439,7 @@ Every family that's ever been separated during a disaster and the emergency resp
 
 ## 📞 Contact & Support
 
-**Developer**: [Your Name/Handle]
+**Developer**: [Erik]
 
 **Project Link**: https://github.com/xenacode-art/CrisisComm
 
@@ -447,7 +447,7 @@ Every family that's ever been separated during a disaster and the emergency resp
 
 **Questions or Feedback?**
 - Open an issue on GitHub
-- Reach out via [your preferred contact method]
+- Reach out via [kajaobinna@gmail.com]
 
 ---
 
